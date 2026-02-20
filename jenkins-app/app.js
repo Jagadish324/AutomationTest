@@ -31,6 +31,8 @@ app.use(session({
 app.use(flash());
 
 /* ── Global template locals ─────────────────────── */
+const JenkinsConfig = require('./config/jenkins');
+
 app.use((req, res, next) => {
   res.locals.flash   = {
     success: req.flash('success'),
@@ -39,6 +41,16 @@ app.use((req, res, next) => {
     warning: req.flash('warning')
   };
   res.locals.currentPath = req.path;
+
+  const configured = JenkinsConfig.isConfigured();
+  const cfg        = JenkinsConfig.getConfig();
+  let   hostLabel  = 'Demo Mode';
+  if (configured && cfg.url) {
+    try { hostLabel = new URL(cfg.url).hostname; } catch (_) { hostLabel = cfg.url; }
+  }
+  res.locals.configured = configured;
+  res.locals.hostLabel  = hostLabel;
+
   next();
 });
 

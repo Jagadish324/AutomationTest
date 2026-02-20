@@ -1,12 +1,3 @@
-<%
-  const JenkinsConfig = require('../config/jenkins');
-  const configured    = JenkinsConfig.isConfigured();
-  const cfg           = JenkinsConfig.getConfig();
-  let   hostLabel     = 'Demo Mode';
-  if (configured && cfg.url) {
-    try { hostLabel = new URL(cfg.url).hostname; } catch(_) { hostLabel = cfg.url; }
-  }
-%>
 <nav class="navbar">
   <div class="navbar-brand">
     <div class="logo-icon">&#9881;</div>
