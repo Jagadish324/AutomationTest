@@ -133,7 +133,7 @@
             <td><%- healthBar(job.healthScore) %></td>
             <td>
               <div class="action-buttons">
-                <% if (!job.isFolder && job.status !== 'disabled' && job.status !== 'running' && job.buildable) { %>
+                <% if (!job.isFolder && job.status !== 'disabled' && job.status !== 'running' && job.buildable && currentUser && currentUser.role !== 'viewer') { %>
                 <form method="POST" action="<%= buildHref %>" style="display:inline;">
                   <button class="btn-icon btn-sm" title="Build Now">&#9654;</button>
                 </form>

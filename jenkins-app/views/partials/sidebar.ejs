@@ -12,6 +12,7 @@
     </a>
   </div>
 
+  <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'developer')) { %>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Job Actions</div>
     <a href="/jobs/new" class="sidebar-item">
@@ -24,11 +25,17 @@
       <span class="item-icon">&#10007;</span> Failed
     </a>
   </div>
+  <% } %>
 
+  <% if (currentUser && currentUser.role === 'admin') { %>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Administration</div>
+    <a href="/users" class="sidebar-item <%= currentPath.startsWith('/users') ? 'active' : '' %>">
+      <span class="item-icon">&#128100;</span> Users
+    </a>
     <a href="/settings" class="sidebar-item <%= currentPath === '/settings' ? 'active' : '' %>">
       <span class="item-icon">&#9881;</span> Settings
     </a>
   </div>
+  <% } %>
 </aside>

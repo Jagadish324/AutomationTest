@@ -1,0 +1,59 @@
+<div class="login-container">
+  <div class="login-card">
+
+    <!-- Logo -->
+    <div class="login-header">
+      <div class="login-logo">&#9881;</div>
+      <h1 class="login-title">Jenkins UI</h1>
+      <p class="login-subtitle">Sign in to your account</p>
+    </div>
+
+    <!-- Flash messages -->
+    <% if (flash && flash.error && flash.error.length > 0) { %>
+      <% flash.error.forEach(msg => { %>
+      <div class="login-alert login-alert-error">&#10007; <%= msg %></div>
+      <% }); %>
+    <% } %>
+    <% if (flash && flash.success && flash.success.length > 0) { %>
+      <% flash.success.forEach(msg => { %>
+      <div class="login-alert login-alert-success">&#10003; <%= msg %></div>
+      <% }); %>
+    <% } %>
+
+    <!-- Login form -->
+    <form method="POST" action="/login" class="login-form">
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input
+          id="username"
+          name="username"
+          type="text"
+          class="form-control"
+          placeholder="Enter username"
+          autocomplete="username"
+          autofocus
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          class="form-control"
+          placeholder="Enter password"
+          autocomplete="current-password"
+          required
+        />
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;">
+        Sign In
+      </button>
+    </form>
+
+    <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--text-muted);">
+      Jenkins CI/CD Management UI
+    </div>
+  </div>
+</div>

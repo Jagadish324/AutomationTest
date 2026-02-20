@@ -32,15 +32,22 @@ app.use(flash());
 
 /* ── Global template locals ─────────────────────── */
 const JenkinsConfig = require('./config/jenkins');
+const { seedAdmin } = require('./config/users');
+
+// Seed default admin on first run
+seedAdmin();
 
 app.use((req, res, next) => {
-  res.locals.flash   = {
+  res.locals.flash = {
     success: req.flash('success'),
     error:   req.flash('error'),
     info:    req.flash('info'),
     warning: req.flash('warning')
   };
   res.locals.currentPath = req.path;
+
+  // Expose current user to all templates (null if not logged in)
+  res.locals.currentUser = req.session && req.session.user ? req.session.user : null;
 
   const configured = JenkinsConfig.isConfigured();
   const cfg        = JenkinsConfig.getConfig();
@@ -55,10 +62,15 @@ app.use((req, res, next) => {
 });
 
 /* ── Routes ─────────────────────────────────────── */
+// Auth routes — public (no login required)
+app.use('/', require('./routes/auth'));
+
+// Protected routes
 app.use('/',         require('./routes/dashboard'));
 app.use('/jobs',     require('./routes/jobs'));
 app.use('/nodes',    require('./routes/nodes'));
 app.use('/settings', require('./routes/settings'));
+app.use('/users',    require('./routes/users'));
 
 /* ── 404 handler ────────────────────────────────── */
 app.use((req, res) => {
@@ -84,6 +96,7 @@ app.listen(PORT, () => {
   console.log(`  http://localhost:${PORT}             Dashboard`);
   console.log(`  http://localhost:${PORT}/jobs        Job Management`);
   console.log(`  http://localhost:${PORT}/nodes       Node Management`);
+  console.log(`  http://localhost:${PORT}/users       User Management`);
   console.log(`  http://localhost:${PORT}/settings    Connection Settings`);
   console.log('');
 });

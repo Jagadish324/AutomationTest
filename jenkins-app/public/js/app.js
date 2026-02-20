@@ -17,3 +17,9 @@ document.querySelectorAll('form[data-confirm]').forEach(form => {
     if (!confirm(form.dataset.confirm)) e.preventDefault();
   });
 });
+
+/* ── Close user dropdown when clicking outside ────── */
+document.addEventListener('click', e => {
+  const menu = document.querySelector('.user-menu.open');
+  if (menu && !menu.contains(e.target)) menu.classList.remove('open');
+});

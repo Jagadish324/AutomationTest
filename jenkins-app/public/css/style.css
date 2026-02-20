@@ -197,6 +197,38 @@ textarea.form-control { resize:vertical;min-height:80px; }
 .label-chips { display:flex;flex-wrap:wrap;gap:4px; }
 .label-chip  { display:inline-block;font-size:11px;font-weight:500;background:#e3f2fd;color:#1565c0;padding:2px 7px;border-radius:10px;white-space:nowrap; }
 
+/* ── Role badges ── */
+.role-badge { display:inline-flex;align-items:center;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase; }
+.role-admin     { background:#ffebee;color:#c62828; }
+.role-developer { background:#e3f2fd;color:#1565c0; }
+.role-viewer    { background:#f3e5f5;color:#6a1b9a; }
+
+/* ── User avatar (small — tables) ── */
+.user-avatar-sm { width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0; }
+
+/* ── Navbar user menu ── */
+.user-menu { position:relative;cursor:pointer; }
+.user-dropdown { display:none;position:absolute;top:calc(100% + 10px);right:0;background:#fff;border:1px solid var(--jenkins-border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:200px;z-index:2000;overflow:hidden; }
+.user-menu.open .user-dropdown { display:block; }
+.user-dropdown-header { padding:14px 16px;background:#f8f9fa;border-bottom:1px solid var(--jenkins-border); }
+.user-dropdown-item { display:block;width:100%;padding:10px 16px;font-size:13px;color:var(--text-dark);background:none;border:none;text-align:left;cursor:pointer;transition:background .15s; }
+.user-dropdown-item:hover { background:#f0f2f5; }
+.user-dropdown-divider { height:1px;background:var(--jenkins-border);margin:4px 0; }
+.user-dropdown-logout { color:var(--danger);font-weight:600;width:100%; }
+
+/* ── Login page ── */
+.login-body { display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,var(--jenkins-dark) 0%,var(--jenkins-blue) 100%); }
+.login-container { width:100%;max-width:420px;padding:20px; }
+.login-card { background:#fff;border-radius:14px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.login-header { text-align:center;margin-bottom:32px; }
+.login-logo { width:60px;height:60px;background:var(--jenkins-accent);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 16px; }
+.login-title { font-size:24px;font-weight:700;color:var(--text-dark);margin-bottom:4px; }
+.login-subtitle { font-size:14px;color:var(--text-muted); }
+.login-form .form-group { margin-bottom:16px; }
+.login-alert { padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;margin-bottom:14px; }
+.login-alert-error   { background:#ffebee;color:#c62828;border-left:4px solid var(--danger); }
+.login-alert-success { background:#e8f5e9;color:#2e7d32;border-left:4px solid var(--success); }
+
 /* ── Responsive ── */
 @media(max-width:1200px) {
   .stats-grid-5 { grid-template-columns:repeat(3,1fr); }

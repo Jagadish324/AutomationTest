@@ -1,0 +1,79 @@
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <div class="page-title">User Management</div>
+    <div class="page-subtitle">Manage application users and roles</div>
+  </div>
+  <div class="header-actions">
+    <a href="/users/new" class="btn btn-primary">&#43; New User</a>
+  </div>
+</div>
+
+<!-- Role legend -->
+<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);">
+    <span class="role-badge role-admin">Admin</span> Full access — users, settings, all job actions
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);">
+    <span class="role-badge role-developer">Developer</span> Create/edit/trigger jobs, view nodes
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);">
+    <span class="role-badge role-viewer">Viewer</span> Read-only — view dashboard, jobs, nodes
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Users <span style="font-size:13px;font-weight:400;color:var(--text-muted);">(<%= users.length %>)</span></span>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach(user => { %>
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="user-avatar-sm" style="background:<%= user.role === 'admin' ? 'var(--jenkins-accent)' : user.role === 'developer' ? 'var(--info)' : '#9e9e9e' %>;">
+                <%= user.name.substring(0,2).toUpperCase() %>
+              </div>
+              <div>
+                <div style="font-weight:600;font-size:13px;"><%= user.name %></div>
+                <% if (currentUser && currentUser.id === user.id) { %>
+                <div style="font-size:11px;color:var(--info);">You</div>
+                <% } %>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:13px;font-family:monospace;"><%= user.username %></td>
+          <td style="font-size:13px;color:var(--text-muted);"><%= user.email || '—' %></td>
+          <td><span class="role-badge role-<%= user.role %>"><%= user.role.charAt(0).toUpperCase() + user.role.slice(1) %></span></td>
+          <td style="font-size:12px;color:var(--text-muted);">
+            <%= new Date(user.createdAt).toLocaleDateString() %>
+          </td>
+          <td>
+            <div class="action-buttons">
+              <a href="/users/<%= user.id %>/edit" class="btn btn-secondary btn-sm">&#9998; Edit</a>
+              <% if (!currentUser || currentUser.id !== user.id) { %>
+              <form method="POST" action="/users/<%= user.id %>?_method=DELETE" style="display:inline;"
+                    onsubmit="return confirm('Delete user <%= user.username %>?');">
+                <button class="btn btn-danger btn-sm">&#10007; Delete</button>
+              </form>
+              <% } %>
+            </div>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -16,8 +16,37 @@
       <%= configured ? hostLabel : 'Demo Mode' %>
     </a>
 
+    <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'developer')) { %>
     <a href="/jobs/new" class="icon-btn" title="New Job">&#43;</a>
+    <% } %>
+    <% if (currentUser && currentUser.role === 'admin') { %>
     <a href="/settings" class="icon-btn" title="Settings">&#9881;</a>
-    <div class="user-avatar">AD</div>
+    <% } %>
+
+    <% if (currentUser) { %>
+    <!-- User menu -->
+    <div class="user-menu" onclick="this.classList.toggle('open')">
+      <div class="user-avatar" title="<%= currentUser.name %> (<%= currentUser.role %>)">
+        <%= currentUser.name.substring(0,2).toUpperCase() %>
+      </div>
+      <div class="user-dropdown">
+        <div class="user-dropdown-header">
+          <div style="font-weight:600;font-size:13px;"><%= currentUser.name %></div>
+          <div style="font-size:11px;color:var(--text-muted);">@<%= currentUser.username %></div>
+          <span class="role-badge role-<%= currentUser.role %>" style="margin-top:6px;">
+            <%= currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) %>
+          </span>
+        </div>
+        <% if (currentUser.role === 'admin') { %>
+        <a href="/users" class="user-dropdown-item">&#128100; User Management</a>
+        <a href="/settings" class="user-dropdown-item">&#9881; Settings</a>
+        <% } %>
+        <div class="user-dropdown-divider"></div>
+        <form method="POST" action="/logout" style="margin:0;">
+          <button class="user-dropdown-item user-dropdown-logout">&#8594; Sign Out</button>
+        </form>
+      </div>
+    </div>
+    <% } %>
   </div>
 </nav>
