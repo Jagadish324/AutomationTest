@@ -12,7 +12,7 @@ const DashboardController = {
     if (configured) {
       try {
         [jobs, queue, executors] = await Promise.all([
-          Jenkins.getJobs(),
+          Jenkins.getAllJobsFlat(),
           Jenkins.getQueue(),
           Jenkins.getExecutors()
         ]);
@@ -22,12 +22,16 @@ const DashboardController = {
       }
     }
 
-    const running  = jobs.filter(j => j.status === 'running').length;
-    const success  = jobs.filter(j => j.status === 'success').length;
-    const failed   = jobs.filter(j => j.status === 'failed').length;
-    const unstable = jobs.filter(j => j.status === 'unstable').length;
-    const disabled = jobs.filter(j => j.status === 'disabled').length;
-    const built    = jobs.filter(j => j.buildNumber > 0).length;
+    // Separate actual buildable jobs from folder containers for stats
+    const buildableJobs = jobs.filter(j => !j.isFolder);
+    const folderCount   = jobs.filter(j =>  j.isFolder).length;
+
+    const running  = buildableJobs.filter(j => j.status === 'running').length;
+    const success  = buildableJobs.filter(j => j.status === 'success').length;
+    const failed   = buildableJobs.filter(j => j.status === 'failed').length;
+    const unstable = buildableJobs.filter(j => j.status === 'unstable').length;
+    const disabled = buildableJobs.filter(j => j.status === 'disabled').length;
+    const built    = buildableJobs.filter(j => j.buildNumber > 0).length;
     const passRate = built > 0 ? Math.round((success / built) * 100) : 0;
 
     const nodesOnline  = executors.filter(n => !n.offline).length;
@@ -41,7 +45,8 @@ const DashboardController = {
       queue,
       executors,
       stats: {
-        total: jobs.length, running, success, failed, unstable, disabled, passRate,
+        total: jobs.length, folders: folderCount, buildable: buildableJobs.length,
+        running, success, failed, unstable, disabled, passRate,
         nodes: executors.length, nodesOnline, nodesOffline
       }
     });

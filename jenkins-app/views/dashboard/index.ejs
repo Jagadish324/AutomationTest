@@ -26,7 +26,9 @@
     <div class="stat-info">
       <div class="stat-value"><%= stats.total %></div>
       <div class="stat-label">Total Jobs</div>
-      <div class="stat-change up">&#8593; <%= stats.passRate %>% pass rate</div>
+      <div class="stat-change" style="color:var(--text-muted);">
+        <%= stats.buildable %> buildable &bull; <%= stats.folders %> folders
+      </div>
     </div>
   </div>
   <div class="stat-card">
@@ -98,18 +100,26 @@
           </tr>
         </thead>
         <tbody>
-          <% jobs.forEach(job => { %>
+          <% jobs.forEach(job => {
+               const segments   = job.fullPath.split('/');
+               const leafName   = segments[segments.length - 1];
+               const parentPath = segments.length > 1 ? segments.slice(0, -1).join(' / ') : '';
+               const jobHref    = '/jobs/' + job.fullPath.split('/').map(encodeURIComponent).join('/');
+               const buildHref  = jobHref + '/build';
+          %>
           <tr>
             <td>
               <div class="job-name-cell">
-                <div class="job-icon">
-                  <% if (job.type==='Pipeline') { %>&#9654;
-                  <% } else if (job.type==='Folder') { %>&#128193;
+                <div class="job-icon" style="background:<%= job.isFolder ? '#fff3e0' : '#e3f2fd' %>;">
+                  <% if (job.isFolder) { %>&#128193;
+                  <% } else if (job.type==='Pipeline') { %>&#9654;
                   <% } else { %>&#9881;<% } %>
                 </div>
                 <div>
-                  <a href="/jobs/<%= encodeURIComponent(job.name) %>" class="job-name"><%= job.name %></a>
-                  <% if (job.description) { %>
+                  <a href="<%= jobHref %>" class="job-name"><%= leafName %></a>
+                  <% if (parentPath) { %>
+                  <div class="job-desc" style="color:var(--info);font-size:10px;">&#128193; <%= parentPath %></div>
+                  <% } else if (job.description) { %>
                   <div class="job-desc"><%= job.description.substring(0, 50) %></div>
                   <% } %>
                 </div>
@@ -125,12 +135,12 @@
             <td><%- healthBar(job.healthScore) %></td>
             <td>
               <div class="action-buttons">
-                <% if (job.status !== 'disabled' && job.status !== 'running' && job.buildable && job.type !== 'Folder') { %>
-                <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>/build" style="display:inline;">
+                <% if (!job.isFolder && job.status !== 'disabled' && job.status !== 'running' && job.buildable) { %>
+                <form method="POST" action="<%= buildHref %>" style="display:inline;">
                   <button class="btn-icon btn-sm" title="Build Now">&#9654;</button>
                 </form>
                 <% } %>
-                <a href="/jobs/<%= encodeURIComponent(job.name) %>" class="btn-icon btn-sm" title="View">&#128269;</a>
+                <a href="<%= jobHref %>" class="btn-icon btn-sm" title="View">&#128269;</a>
               </div>
             </td>
           </tr>

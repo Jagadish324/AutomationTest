@@ -131,6 +131,40 @@ class JenkinsClient {
   }
 
   /**
+   * Recursively fetch ALL jobs across every folder level in one HTTP request.
+   * Builds a deeply-nested tree query (6 levels) so Jenkins expands folder
+   * children server-side. The result is a flat array with fullPath set on
+   * each entry (e.g. "TeamA/Frontend/deploy").
+   */
+  async getAllJobsFlat() {
+    const leaf = 'name,_class,color,buildable,description,' +
+                 'lastBuild[number,duration,timestamp,result],' +
+                 'healthReport[score]';
+
+    // Nest the tree query N levels deep so Jenkins expands folder children
+    const buildTree = depth =>
+      depth === 0 ? leaf : `${leaf},jobs[${buildTree(depth - 1)}]`;
+
+    const tree = `jobs[${buildTree(6)}]`;
+    const res  = await this._http().get(`/api/json?tree=${encodeURIComponent(tree)}`);
+
+    const flatten = (jobs, parentPath) => {
+      const out = [];
+      for (const j of (jobs || [])) {
+        const fullPath = parentPath ? `${parentPath}/${j.name}` : j.name;
+        const isFolder = this._isFolder(j._class);
+        out.push({ ...this._transformJob(j), fullPath, isFolder });
+        if (isFolder && j.jobs && j.jobs.length > 0) {
+          out.push(...flatten(j.jobs, fullPath));
+        }
+      }
+      return out;
+    };
+
+    return flatten(res.data.jobs || [], '');
+  }
+
+  /**
    * Fetch the contents of a folder (or root when folderPath is empty).
    * Returns { name, description, _class, isFolder, jobs: [...] }
    * Each job in the list has fullPath set (parentPath/childName).
