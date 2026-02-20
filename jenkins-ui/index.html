@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jenkins - Dashboard</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ========== NAVBAR ========== -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="logo-icon">&#9881;</div>
+      Jenkins CI
+    </div>
+    <div class="navbar-search">
+      <span class="search-icon">&#128269;</span>
+      <input type="text" placeholder="Search jobs, builds..." id="globalSearch" />
+    </div>
+    <div class="navbar-actions">
+      <button class="icon-btn" title="Build Queue" onclick="window.location.href='jobs.html'">
+        &#9776;
+      </button>
+      <button class="icon-btn" title="Notifications">
+        &#128276;
+        <span class="badge">3</span>
+      </button>
+      <button class="icon-btn" title="Settings">&#9881;</button>
+      <div class="user-avatar" title="admin">AD</div>
+    </div>
+  </nav>
+
+  <!-- ========== SIDEBAR ========== -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Main</div>
+      <a href="index.html" class="sidebar-item active" id="nav-dashboard">
+        <span class="item-icon">&#128202;</span> Dashboard
+      </a>
+      <a href="jobs.html" class="sidebar-item" id="nav-jobs">
+        <span class="item-icon">&#9881;</span> Jobs
+        <span class="item-badge" id="sidebar-job-count">0</span>
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Builds page coming soon!','info'); return false;">
+        <span class="item-icon">&#128736;</span> Build History
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Pipelines page coming soon!','info'); return false;">
+        <span class="item-icon">&#9654;</span> Pipelines
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Monitoring</div>
+      <a href="#" class="sidebar-item" onclick="showToast('Nodes page coming soon!','info'); return false;">
+        <span class="item-icon">&#128421;</span> Nodes
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Logs page coming soon!','info'); return false;">
+        <span class="item-icon">&#128196;</span> Logs
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Metrics page coming soon!','info'); return false;">
+        <span class="item-icon">&#128200;</span> Metrics
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Administration</div>
+      <a href="#" class="sidebar-item" onclick="showToast('Users page coming soon!','info'); return false;">
+        <span class="item-icon">&#128101;</span> Users
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Credentials page coming soon!','info'); return false;">
+        <span class="item-icon">&#128273;</span> Credentials
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Plugins page coming soon!','info'); return false;">
+        <span class="item-icon">&#128268;</span> Plugins
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Settings page coming soon!','info'); return false;">
+        <span class="item-icon">&#9965;</span> Configure
+      </a>
+    </div>
+  </aside>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <main class="main-content">
+    <div class="content-area">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard</div>
+          <div class="page-subtitle">Overview of your CI/CD pipeline health and activity</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="refreshDashboard()">&#8635; Refresh</button>
+          <button class="btn btn-primary" onclick="window.location.href='jobs.html'">&#43; New Job</button>
+        </div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">&#9881;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-total-jobs">0</div>
+            <div class="stat-label">Total Jobs</div>
+            <div class="stat-change up" id="stat-jobs-change">&#8593; 0 this week</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">&#10003;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-success">0</div>
+            <div class="stat-label">Successful Builds</div>
+            <div class="stat-change up" id="stat-success-rate">0% pass rate</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">&#10007;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-failed">0</div>
+            <div class="stat-label">Failed Builds</div>
+            <div class="stat-change down" id="stat-failed-rate">0% fail rate</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange">&#9654;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-running">0</div>
+            <div class="stat-label">Running Now</div>
+            <div class="stat-change" id="stat-queued" style="color: var(--info);">0 in queue</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard Grid -->
+      <div class="dashboard-grid">
+
+        <!-- Left column: Build Activity + Recent Builds -->
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+
+          <!-- Build Trend Chart -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Build Trend (Last 14 Days)</span>
+              <div style="display:flex; gap:12px; font-size:12px; align-items:center;">
+                <span><span style="display:inline-block;width:10px;height:10px;background:var(--success);border-radius:2px;margin-right:4px;"></span>Success</span>
+                <span><span style="display:inline-block;width:10px;height:10px;background:var(--danger);border-radius:2px;margin-right:4px;"></span>Failed</span>
+                <span><span style="display:inline-block;width:10px;height:10px;background:var(--warning);border-radius:2px;margin-right:4px;"></span>Unstable</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="build-chart" id="buildChart"></div>
+              <div class="chart-labels" id="chartLabels"></div>
+            </div>
+          </div>
+
+          <!-- Recent Builds -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Recent Build Activity</span>
+              <a href="jobs.html" class="btn btn-secondary btn-sm">View All</a>
+            </div>
+            <div class="card-body" style="padding-top: 0; padding-bottom: 0;">
+              <ul class="build-list" id="recentBuilds"></ul>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right column -->
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+
+          <!-- Build Queue -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Build Queue</span>
+              <span class="status-badge queued" id="queue-count-badge">0 waiting</span>
+            </div>
+            <div class="card-body" style="padding-top: 0; padding-bottom: 0;">
+              <ul class="queue-list" id="buildQueue"></ul>
+            </div>
+          </div>
+
+          <!-- Job Health Summary -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Job Health</span>
+            </div>
+            <div class="card-body">
+              <div id="jobHealthSummary"></div>
+            </div>
+          </div>
+
+          <!-- Executor Status -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Build Executors</span>
+            </div>
+            <div class="card-body">
+              <div class="executor-grid" id="executorGrid"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Jobs Overview Table -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Jobs Overview</span>
+          <a href="jobs.html" class="btn btn-primary btn-sm">Manage Jobs</a>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Job Name</th>
+                <th>Status</th>
+                <th>Last Build</th>
+                <th>Build #</th>
+                <th>Duration</th>
+                <th>Health</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="dashboardJobTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      renderDashboard();
+    });
+  </script>
+</body>
+</html>

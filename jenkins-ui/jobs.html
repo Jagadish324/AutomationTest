@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jenkins - Job Management</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ========== NAVBAR ========== -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="logo-icon">&#9881;</div>
+      Jenkins CI
+    </div>
+    <div class="navbar-search">
+      <span class="search-icon">&#128269;</span>
+      <input type="text" placeholder="Search jobs..." id="globalSearch" oninput="filterJobsTable()" />
+    </div>
+    <div class="navbar-actions">
+      <button class="icon-btn" title="Dashboard" onclick="window.location.href='index.html'">
+        &#128202;
+      </button>
+      <button class="icon-btn" title="Notifications">
+        &#128276;
+        <span class="badge">3</span>
+      </button>
+      <button class="icon-btn" title="Settings">&#9881;</button>
+      <div class="user-avatar" title="admin">AD</div>
+    </div>
+  </nav>
+
+  <!-- ========== SIDEBAR ========== -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Main</div>
+      <a href="index.html" class="sidebar-item" id="nav-dashboard">
+        <span class="item-icon">&#128202;</span> Dashboard
+      </a>
+      <a href="jobs.html" class="sidebar-item active" id="nav-jobs">
+        <span class="item-icon">&#9881;</span> Jobs
+        <span class="item-badge" id="sidebar-job-count">0</span>
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Builds page coming soon!','info'); return false;">
+        <span class="item-icon">&#128736;</span> Build History
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Pipelines page coming soon!','info'); return false;">
+        <span class="item-icon">&#9654;</span> Pipelines
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Monitoring</div>
+      <a href="#" class="sidebar-item" onclick="showToast('Nodes page coming soon!','info'); return false;">
+        <span class="item-icon">&#128421;</span> Nodes
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Logs page coming soon!','info'); return false;">
+        <span class="item-icon">&#128196;</span> Logs
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Metrics page coming soon!','info'); return false;">
+        <span class="item-icon">&#128200;</span> Metrics
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Administration</div>
+      <a href="#" class="sidebar-item" onclick="showToast('Users page coming soon!','info'); return false;">
+        <span class="item-icon">&#128101;</span> Users
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Credentials page coming soon!','info'); return false;">
+        <span class="item-icon">&#128273;</span> Credentials
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Plugins page coming soon!','info'); return false;">
+        <span class="item-icon">&#128268;</span> Plugins
+      </a>
+      <a href="#" class="sidebar-item" onclick="showToast('Settings page coming soon!','info'); return false;">
+        <span class="item-icon">&#9965;</span> Configure
+      </a>
+    </div>
+  </aside>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <main class="main-content">
+    <div class="content-area">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Job Management</div>
+          <div class="page-subtitle">Create, configure, trigger and monitor your CI/CD jobs</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="refreshJobs()">&#8635; Refresh</button>
+          <button class="btn btn-primary" onclick="openCreateModal()">&#43; New Job</button>
+        </div>
+      </div>
+
+      <!-- Stat Strip -->
+      <div class="stats-grid" style="grid-template-columns: repeat(5,1fr);">
+        <div class="stat-card">
+          <div class="stat-icon blue">&#9881;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">Total Jobs</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">&#10003;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-success-count">0</div>
+            <div class="stat-label">Passing</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">&#10007;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-failed-count">0</div>
+            <div class="stat-label">Failing</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange">&#9654;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-running-count">0</div>
+            <div class="stat-label">Running</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">&#128683;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-disabled-count">0</div>
+            <div class="stat-label">Disabled</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <button class="filter-tab active" onclick="setFilter('all', this)">
+          All <span class="tab-count" id="count-all">0</span>
+        </button>
+        <button class="filter-tab" onclick="setFilter('success', this)">
+          Success <span class="tab-count" id="count-success">0</span>
+        </button>
+        <button class="filter-tab" onclick="setFilter('failed', this)">
+          Failed <span class="tab-count" id="count-failed">0</span>
+        </button>
+        <button class="filter-tab" onclick="setFilter('running', this)">
+          Running <span class="tab-count" id="count-running">0</span>
+        </button>
+        <button class="filter-tab" onclick="setFilter('unstable', this)">
+          Unstable <span class="tab-count" id="count-unstable">0</span>
+        </button>
+        <button class="filter-tab" onclick="setFilter('disabled', this)">
+          Disabled <span class="tab-count" id="count-disabled">0</span>
+        </button>
+        <div class="search-filter">
+          <span>&#128269;</span>
+          <input type="text" id="tableSearch" placeholder="Search jobs..." oninput="filterJobsTable()" />
+        </div>
+      </div>
+
+      <!-- Jobs Table -->
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>
+                  <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" />
+                </th>
+                <th onclick="sortTable('name')" style="cursor:pointer;">Job Name &#8597;</th>
+                <th onclick="sortTable('type')" style="cursor:pointer;">Type &#8597;</th>
+                <th onclick="sortTable('status')" style="cursor:pointer;">Status &#8597;</th>
+                <th>Last Build</th>
+                <th onclick="sortTable('buildNumber')" style="cursor:pointer;">Build # &#8597;</th>
+                <th>Duration</th>
+                <th>Trigger</th>
+                <th>Health</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobsTableBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty-state" style="display:none;">
+            <div class="empty-icon">&#9881;</div>
+            <p>No jobs found. <a href="#" onclick="openCreateModal(); return false;" style="color: var(--info);">Create your first job</a></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bulk Actions Bar -->
+      <div id="bulkActionsBar" style="display:none; margin-top:12px;">
+        <div class="card" style="padding: 12px 20px; display:flex; align-items:center; gap:12px; background: var(--jenkins-blue);">
+          <span style="color:#fff; font-size:13px; font-weight:600;" id="selectedCount">0 selected</span>
+          <button class="btn btn-success btn-sm" onclick="bulkBuild()">&#9654; Build Selected</button>
+          <button class="btn btn-secondary btn-sm" onclick="bulkDisable()">&#128683; Disable Selected</button>
+          <button class="btn btn-danger btn-sm" onclick="bulkDelete()">&#128465; Delete Selected</button>
+          <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="clearSelection()">Cancel</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ========== CREATE / EDIT JOB MODAL ========== -->
+  <div class="modal-overlay" id="jobModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modalTitle">Create New Job</span>
+        <button class="modal-close" onclick="closeModal('jobModal')">&#10005;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editJobId" />
+
+        <div class="form-group">
+          <label class="form-label">Job Name <span class="required">*</span></label>
+          <input type="text" id="jobName" class="form-control" placeholder="e.g. my-web-app-build" />
+          <div class="form-hint">Use lowercase letters, numbers, and hyphens. No spaces.</div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Job Type <span class="required">*</span></label>
+            <select id="jobType" class="form-control">
+              <option value="Freestyle">Freestyle Project</option>
+              <option value="Pipeline">Pipeline</option>
+              <option value="Multibranch">Multibranch Pipeline</option>
+              <option value="Maven">Maven Project</option>
+              <option value="Folder">Folder</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select id="jobPriority" class="form-control">
+              <option value="Normal">Normal</option>
+              <option value="High">High</option>
+              <option value="Low">Low</option>
+              <option value="Critical">Critical</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea id="jobDescription" class="form-control" placeholder="Brief description of this job..." rows="3"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">SCM Repository URL</label>
+            <input type="text" id="jobRepo" class="form-control" placeholder="https://github.com/org/repo.git" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Branch</label>
+            <input type="text" id="jobBranch" class="form-control" placeholder="main" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Build Trigger</label>
+          <select id="jobTrigger" class="form-control">
+            <option value="Manual">Manual</option>
+            <option value="SCM Poll">SCM Poll (H/5 * * * *)</option>
+            <option value="Webhook">GitHub Webhook</option>
+            <option value="Scheduled">Scheduled (Cron)</option>
+            <option value="Upstream">Upstream Job</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Build Tool</label>
+            <select id="jobBuildTool" class="form-control">
+              <option value="Maven">Maven</option>
+              <option value="Gradle">Gradle</option>
+              <option value="npm">npm</option>
+              <option value="Make">Make</option>
+              <option value="Ant">Ant</option>
+              <option value="Shell">Shell Script</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Node/Agent Label</label>
+            <input type="text" id="jobNode" class="form-control" placeholder="built-in / linux-agent" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <input type="checkbox" id="jobNotifyEmail" style="margin-right:6px;" />
+            Enable Email Notifications on Failure
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('jobModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveJob()">&#10003; Save Job</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== VIEW JOB MODAL ========== -->
+  <div class="modal-overlay" id="viewModal">
+    <div class="modal" style="width: 640px;">
+      <div class="modal-header">
+        <span class="modal-title" id="viewModalTitle">Job Details</span>
+        <button class="modal-close" onclick="closeModal('viewModal')">&#10005;</button>
+      </div>
+      <div class="modal-body" id="viewModalBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('viewModal')">Close</button>
+        <button class="btn btn-success" id="viewModalBuildBtn">&#9654; Build Now</button>
+        <button class="btn btn-primary" id="viewModalEditBtn">&#9998; Edit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DELETE CONFIRM MODAL ========== -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal" style="width: 420px;">
+      <div class="modal-header">
+        <span class="modal-title" style="color: var(--danger);">&#9888; Confirm Delete</span>
+        <button class="modal-close" onclick="closeModal('deleteModal')">&#10005;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:14px;">Are you sure you want to delete job <strong id="deleteJobName"></strong>?</p>
+        <p style="font-size:13px; color: var(--text-muted); margin-top:8px;">This will permanently remove the job and all its build history. This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDelete()">&#128465; Delete Job</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== BUILD LOG MODAL ========== -->
+  <div class="modal-overlay" id="logModal">
+    <div class="modal" style="width: 680px;">
+      <div class="modal-header">
+        <span class="modal-title" id="logModalTitle">Build Console Output</span>
+        <button class="modal-close" onclick="closeModal('logModal')">&#10005;</button>
+      </div>
+      <div class="modal-body" style="padding: 0;">
+        <div id="consoleOutput" style="
+          background: #1e1e1e;
+          color: #d4d4d4;
+          font-family: monospace;
+          font-size: 12px;
+          padding: 16px;
+          max-height: 400px;
+          overflow-y: auto;
+          white-space: pre-wrap;
+          line-height: 1.6;
+        "></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('logModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      renderJobsPage();
+    });
+  </script>
+</body>
+</html>
