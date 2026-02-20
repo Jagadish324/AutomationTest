@@ -1,0 +1,179 @@
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <% if (node) { %>
+    <div class="page-title">
+      <span style="margin-right:8px;">&#128421;</span><%= node.name %>
+    </div>
+    <div class="page-subtitle">Node details &amp; executor status</div>
+    <% } else { %>
+    <div class="page-title">Node: <%= nodeName %></div>
+    <% } %>
+  </div>
+  <div class="header-actions">
+    <a href="/nodes" class="btn btn-secondary">&#8592; All Nodes</a>
+    <a href="/nodes/<%= encodeURIComponent(nodeName) %>" class="btn btn-secondary">&#8635; Refresh</a>
+  </div>
+</div>
+
+<% if (!configured) { %>
+<div class="alert alert-warning" style="margin-bottom:20px;">
+  <span class="alert-icon">&#9888;</span>
+  Jenkins is not connected.
+  <a href="/settings" style="font-weight:700; margin-left:8px;">Configure connection &rarr;</a>
+  <button class="alert-close" onclick="this.parentElement.remove()">&#10005;</button>
+</div>
+<% } %>
+
+<% if (!node) { %>
+<div class="alert alert-error">
+  <span class="alert-icon">&#10007;</span>
+  Could not load node details<%= error ? ': ' + error : '.' %>
+  <button class="alert-close" onclick="this.parentElement.remove()">&#10005;</button>
+</div>
+<% } else { %>
+
+<!-- Stat Cards -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon <%= node.offline ? 'red' : 'green' %>">&#9679;</div>
+    <div class="stat-info">
+      <div class="stat-value" style="font-size:18px;font-weight:700;">
+        <%= node.offline ? 'Offline' : node.busy > 0 ? 'Building' : 'Idle' %>
+      </div>
+      <div class="stat-label">Status</div>
+      <div class="stat-change <%= node.offline ? 'down' : 'up' %>">
+        <%= node.offline ? (node.offlineCause || 'Node is offline') : 'Node is available' %>
+      </div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue">&#9881;</div>
+    <div class="stat-info">
+      <div class="stat-value"><%= node.total %></div>
+      <div class="stat-label">Total Executors</div>
+      <div class="stat-change"><%= node.busy %> busy, <%= node.total - node.busy %> idle</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon orange">&#9654;</div>
+    <div class="stat-info">
+      <div class="stat-value"><%= node.busy %></div>
+      <div class="stat-label">Active Builds</div>
+      <div class="stat-change" style="color:var(--info);"><%= node.load %>% executor load</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">&#127991;</div>
+    <div class="stat-info">
+      <div class="stat-value"><%= node.labels ? node.labels.length : 0 %></div>
+      <div class="stat-label">Labels</div>
+      <div class="stat-change up">Configured tags</div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail + Builds grid -->
+<div class="dashboard-grid">
+
+  <!-- Left: Node detail -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Node Details</span>
+      <%- statusBadge(node.offline ? 'offline' : node.busy > 0 ? 'running' : 'idle') %>
+    </div>
+    <div class="card-body">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:10px 0;font-size:13px;font-weight:600;color:var(--text-muted);width:140px;">Name</td>
+          <td style="padding:10px 0;font-size:13px;"><%= node.name %></td>
+        </tr>
+        <% if (node.description) { %>
+        <tr style="border-top:1px solid #f0f0f0;">
+          <td style="padding:10px 0;font-size:13px;font-weight:600;color:var(--text-muted);">Description</td>
+          <td style="padding:10px 0;font-size:13px;"><%= node.description %></td>
+        </tr>
+        <% } %>
+        <tr style="border-top:1px solid #f0f0f0;">
+          <td style="padding:10px 0;font-size:13px;font-weight:600;color:var(--text-muted);">Status</td>
+          <td style="padding:10px 0;"><%- statusBadge(node.offline ? 'offline' : node.busy > 0 ? 'running' : 'idle') %></td>
+        </tr>
+        <% if (node.offline && node.offlineCause) { %>
+        <tr style="border-top:1px solid #f0f0f0;">
+          <td style="padding:10px 0;font-size:13px;font-weight:600;color:var(--text-muted);">Offline Cause</td>
+          <td style="padding:10px 0;font-size:13px;color:var(--danger);"><%= node.offlineCause %></td>
+        </tr>
+        <% } %>
+        <tr style="border-top:1px solid #f0f0f0;">
+          <td style="padding:10px 0;font-size:13px;font-weight:600;color:var(--text-muted);">Executors</td>
+          <td style="padding:10px 0;font-size:13px;"><%= node.busy %> / <%= node.total %> busy</td>
+        </tr>
+        <tr style="border-top:1px solid #f0f0f0;">
+          <td style="padding:10px 0;font-size:13px;font-weight:600;color:var(--text-muted);">Executor Load</td>
+          <td style="padding:10px 0;">
+            <% const loadColor = node.load === 0 ? 'var(--success)' : node.load < 70 ? 'var(--info)' : 'var(--warning)'; %>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="progress-bar-container" style="width:120px;">
+                <div class="progress-bar" style="width:<%= node.load %>%;background:<%= loadColor %>;"></div>
+              </div>
+              <span style="font-size:13px;font-weight:600;"><%= node.load %>%</span>
+            </div>
+          </td>
+        </tr>
+        <% if (node.labels && node.labels.length > 0) { %>
+        <tr style="border-top:1px solid #f0f0f0;">
+          <td style="padding:10px 0;font-size:13px;font-weight:600;color:var(--text-muted);">Labels</td>
+          <td style="padding:10px 0;">
+            <div class="label-chips">
+              <% node.labels.forEach(lbl => { %>
+                <span class="label-chip"><%= lbl %></span>
+              <% }); %>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right: Active builds -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Active Builds</span>
+      <span class="status-badge <%= node.busy > 0 ? 'running' : 'aborted' %>"><%= node.busy %> running</span>
+    </div>
+    <div class="card-body" style="padding-top:0;padding-bottom:0;">
+      <% if (!node.currentBuilds || node.currentBuilds.length === 0) { %>
+        <p style="padding:16px 0;font-size:13px;color:var(--text-muted);">No active builds on this node.</p>
+      <% } else { %>
+      <ul class="queue-list">
+        <% node.currentBuilds.forEach(b => { %>
+        <li class="queue-item">
+          <div style="flex:1;min-width:0;">
+            <div class="queue-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              &#9654; <%= b.name %>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);">
+              Started <%= b.since %><% if (b.eta) { %> &bull; ETA <%= b.eta %><% } %>
+            </div>
+          </div>
+        </li>
+        <% }); %>
+      </ul>
+      <% } %>
+    </div>
+  </div>
+
+</div>
+
+<% } %>
+
+<% function statusBadge(status) {
+  const map = {
+    idle:    ['&#9679; Idle',    'success'],
+    running: ['&#9654; Building','running'],
+    offline: ['&#9679; Offline', 'failed']
+  };
+  const [label, cls] = map[status] || [status, 'aborted'];
+  return `<span class="status-badge ${cls}">${label}</span>`;
+} %>

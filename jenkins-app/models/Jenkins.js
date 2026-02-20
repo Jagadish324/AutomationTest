@@ -353,19 +353,55 @@ class JenkinsClient {
   }
 
   async getExecutors() {
-    const tree = 'computer[displayName,offline,numExecutors,executors[currentExecutable[fullDisplayName]]]';
+    const tree = 'computer[displayName,description,offline,offlineCauseReason,numExecutors,' +
+                 'executors[currentExecutable[fullDisplayName,number,url]],assignedLabels[name]]';
     const res  = await this._http().get(`/computer/api/json?tree=${encodeURIComponent(tree)}`);
     return (res.data.computer || []).map(node => {
       const busy  = (node.executors || []).filter(e => e.currentExecutable).length;
       const total = node.numExecutors || 1;
       return {
-        name:    node.displayName,
-        offline: node.offline,
+        name:         node.displayName,
+        description:  node.description || '',
+        offline:      node.offline,
+        offlineCause: node.offlineCauseReason || '',
         busy, total,
         load:    Math.round((busy / total) * 100),
-        status:  node.offline ? 'Offline' : busy > 0 ? `Building (${busy}/${total})` : 'Idle'
+        status:  node.offline ? 'Offline' : busy > 0 ? `Building (${busy}/${total})` : 'Idle',
+        labels:  (node.assignedLabels || []).map(l => l.name).filter(n => n && n !== node.displayName),
+        currentBuilds: (node.executors || [])
+          .filter(e => e.currentExecutable)
+          .map(e => ({ name: e.currentExecutable.fullDisplayName, url: e.currentExecutable.url }))
       };
     });
+  }
+
+  async getNode(nodeName) {
+    const apiName = (nodeName === 'master' || nodeName === 'Built-In Node') ? '(master)' : nodeName;
+    const tree    = 'displayName,description,offline,offlineCauseReason,numExecutors,' +
+                    'executors[currentExecutable[fullDisplayName,number,url,timestamp,estimatedDuration]],' +
+                    'assignedLabels[name]';
+    const res  = await this._http().get(`/computer/${enc(apiName)}/api/json?tree=${encodeURIComponent(tree)}`);
+    const n    = res.data;
+    const busy  = (n.executors || []).filter(e => e.currentExecutable).length;
+    const total = n.numExecutors || 1;
+    return {
+      name:         n.displayName,
+      description:  n.description || '',
+      offline:      n.offline,
+      offlineCause: n.offlineCauseReason || '',
+      busy, total,
+      load:    Math.round((busy / total) * 100),
+      status:  n.offline ? 'Offline' : busy > 0 ? `Building (${busy}/${total})` : 'Idle',
+      labels:  (n.assignedLabels || []).map(l => l.name).filter(nm => nm && nm !== n.displayName),
+      currentBuilds: (n.executors || [])
+        .filter(e => e.currentExecutable)
+        .map(e => ({
+          name:  e.currentExecutable.fullDisplayName,
+          url:   e.currentExecutable.url,
+          since: fmtRelative(e.currentExecutable.timestamp),
+          eta:   fmtDuration(e.currentExecutable.estimatedDuration)
+        }))
+    };
   }
 }
 

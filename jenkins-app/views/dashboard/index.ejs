@@ -20,7 +20,7 @@
 <% } %>
 
 <!-- Stat Cards -->
-<div class="stats-grid">
+<div class="stats-grid stats-grid-5">
   <div class="stat-card">
     <div class="stat-icon blue">&#9881;</div>
     <div class="stat-info">
@@ -34,7 +34,7 @@
     <div class="stat-info">
       <div class="stat-value"><%= stats.success %></div>
       <div class="stat-label">Passing</div>
-      <div class="stat-change up">Last build success</div>
+      <div class="stat-change up"><%= stats.unstable %> unstable</div>
     </div>
   </div>
   <div class="stat-card">
@@ -42,7 +42,7 @@
     <div class="stat-info">
       <div class="stat-value"><%= stats.failed %></div>
       <div class="stat-label">Failed</div>
-      <div class="stat-change down"><%= stats.unstable %> unstable</div>
+      <div class="stat-change down"><%= stats.disabled %> disabled</div>
     </div>
   </div>
   <div class="stat-card">
@@ -53,18 +53,31 @@
       <div class="stat-change" style="color:var(--info);"><%= queue.length %> in queue</div>
     </div>
   </div>
+  <div class="stat-card" style="cursor:pointer;" onclick="location.href='/nodes'">
+    <div class="stat-icon <%= stats.nodesOffline > 0 ? 'red' : 'green' %>">&#128421;</div>
+    <div class="stat-info">
+      <div class="stat-value"><%= stats.nodes %></div>
+      <div class="stat-label">Nodes</div>
+      <div class="stat-change <%= stats.nodesOffline > 0 ? 'down' : 'up' %>">
+        <%= stats.nodesOnline %> online<% if (stats.nodesOffline > 0) { %>, <%= stats.nodesOffline %> offline<% } %>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Two-column layout -->
 <div class="dashboard-grid">
 
-  <!-- Left: Jobs overview -->
+  <!-- Left: Jobs overview (all jobs) -->
   <div class="card">
     <div class="card-header">
-      <span class="card-title">Jobs Overview</span>
+      <span class="card-title">
+        Jobs Overview
+        <span style="font-size:13px;font-weight:400;color:var(--text-muted);margin-left:6px;">(<%= jobs.length %>)</span>
+      </span>
       <a href="/jobs" class="btn btn-primary btn-sm">Manage Jobs</a>
     </div>
-    <div class="table-container">
+    <div class="table-container" style="max-height:520px;overflow-y:auto;">
       <% if (jobs.length === 0) { %>
         <div class="empty-state">
           <div class="empty-icon">&#9881;</div>
@@ -75,8 +88,11 @@
         <thead>
           <tr>
             <th>Job</th>
+            <th>Type</th>
             <th>Status</th>
+            <th>Build #</th>
             <th>Last Build</th>
+            <th>Duration</th>
             <th>Health</th>
             <th>Actions</th>
           </tr>
@@ -93,16 +109,23 @@
                 </div>
                 <div>
                   <a href="/jobs/<%= encodeURIComponent(job.name) %>" class="job-name"><%= job.name %></a>
-                  <div class="job-desc"><%= job.description.substring(0,55) || job.type %></div>
+                  <% if (job.description) { %>
+                  <div class="job-desc"><%= job.description.substring(0, 50) %></div>
+                  <% } %>
                 </div>
               </div>
             </td>
+            <td><span style="font-size:11px;color:var(--text-muted);font-weight:500;"><%= job.type %></span></td>
             <td><%- statusBadge(job.status) %></td>
-            <td style="font-size:12px;color:var(--text-muted);"><%= job.lastBuild %></td>
+            <td style="font-size:13px;font-weight:600;color:var(--text-dark);">
+              <% if (job.buildNumber > 0) { %>#<%= job.buildNumber %><% } else { %><span style="color:var(--text-muted);">—</span><% } %>
+            </td>
+            <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;"><%= job.lastBuild %></td>
+            <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;"><%= job.duration %></td>
             <td><%- healthBar(job.healthScore) %></td>
             <td>
               <div class="action-buttons">
-                <% if (job.status !== 'disabled' && job.status !== 'running' && job.buildable) { %>
+                <% if (job.status !== 'disabled' && job.status !== 'running' && job.buildable && job.type !== 'Folder') { %>
                 <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>/build" style="display:inline;">
                   <button class="btn-icon btn-sm" title="Build Now">&#9654;</button>
                 </form>
@@ -118,7 +141,7 @@
     </div>
   </div>
 
-  <!-- Right: Queue + Executors -->
+  <!-- Right: Queue + Nodes -->
   <div style="display:flex;flex-direction:column;gap:16px;">
 
     <!-- Build Queue -->
@@ -146,24 +169,32 @@
       </div>
     </div>
 
-    <!-- Executors -->
+    <!-- Nodes / Executors -->
     <div class="card">
       <div class="card-header">
-        <span class="card-title">Build Executors</span>
+        <span class="card-title">Nodes</span>
+        <a href="/nodes" class="btn btn-secondary btn-sm">All Nodes</a>
       </div>
       <div class="card-body">
         <% if (executors.length === 0) { %>
-          <p style="font-size:13px;color:var(--text-muted);">No executor data available.</p>
+          <p style="font-size:13px;color:var(--text-muted);">No node data available.</p>
         <% } else { %>
         <div class="executor-grid">
           <% executors.forEach(ex => { %>
-          <div class="executor-card">
+          <div class="executor-card" onclick="location.href='/nodes/<%= encodeURIComponent(ex.name) %>'" style="cursor:pointer;">
             <div class="executor-name"><%= ex.name %></div>
-            <div class="executor-status" style="color:<%= ex.offline ? 'var(--danger)' : ex.load > 0 ? 'var(--info)' : 'var(--success)' %>;font-size:11px;">
+            <div class="executor-status" style="color:<%= ex.offline ? 'var(--danger)' : ex.load > 0 ? 'var(--info)' : 'var(--success)' %>;">
               &#9679; <%= ex.status %>
             </div>
+            <% if (ex.labels && ex.labels.length > 0) { %>
+            <div style="margin-top:4px;">
+              <% ex.labels.slice(0,2).forEach(lbl => { %>
+                <span style="display:inline-block;font-size:10px;background:#e3f2fd;color:#1565c0;padding:1px 5px;border-radius:6px;margin-right:2px;"><%= lbl %></span>
+              <% }); %>
+            </div>
+            <% } %>
             <div class="executor-bar">
-              <div class="executor-bar-fill" style="width:<%= ex.load %>%;"></div>
+              <div class="executor-bar-fill" style="width:<%= ex.load %>%;background:<%= ex.offline ? 'var(--danger)' : ex.load < 70 ? 'var(--info)' : 'var(--warning)' %>;"></div>
             </div>
           </div>
           <% }); %>
@@ -175,7 +206,7 @@
   </div>
 </div>
 
-<% /* ── Helpers available inside EJS ── */
+<% /* ── Helpers ── */
 function statusBadge(status) {
   const map = {
     success: ['&#10003; Success','success'],

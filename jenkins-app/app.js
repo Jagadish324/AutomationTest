@@ -57,6 +57,7 @@ app.use((req, res, next) => {
 /* ── Routes ─────────────────────────────────────── */
 app.use('/',         require('./routes/dashboard'));
 app.use('/jobs',     require('./routes/jobs'));
+app.use('/nodes',    require('./routes/nodes'));
 app.use('/settings', require('./routes/settings'));
 
 /* ── 404 handler ────────────────────────────────── */
@@ -82,6 +83,7 @@ app.listen(PORT, () => {
   console.log('  ─────────────────────────────────');
   console.log(`  http://localhost:${PORT}             Dashboard`);
   console.log(`  http://localhost:${PORT}/jobs        Job Management`);
+  console.log(`  http://localhost:${PORT}/nodes       Node Management`);
   console.log(`  http://localhost:${PORT}/settings    Connection Settings`);
   console.log('');
 });

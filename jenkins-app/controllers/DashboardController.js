@@ -30,14 +30,20 @@ const DashboardController = {
     const built    = jobs.filter(j => j.buildNumber > 0).length;
     const passRate = built > 0 ? Math.round((success / built) * 100) : 0;
 
+    const nodesOnline  = executors.filter(n => !n.offline).length;
+    const nodesOffline = executors.filter(n =>  n.offline).length;
+
     res.render('dashboard/index', {
       title:      'Dashboard',
       configured,
       error,
-      jobs:       jobs.slice(0, 10),
+      jobs,
       queue,
       executors,
-      stats: { total: jobs.length, running, success, failed, unstable, disabled, passRate }
+      stats: {
+        total: jobs.length, running, success, failed, unstable, disabled, passRate,
+        nodes: executors.length, nodesOnline, nodesOffline
+      }
     });
   }
 };
