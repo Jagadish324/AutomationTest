@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= typeof title !== 'undefined' ? title + ' — Jenkins UI' : 'Jenkins UI' %></title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <%- include('partials/navbar') %>
+  <%- include('partials/sidebar') %>
+
+  <main class="main-content">
+    <div class="content-area">
+      <%- include('partials/alerts') %>
+      <%- body %>
+    </div>
+  </main>
+
+  <div class="toast-container" id="toastContainer"></div>
+  <script src="/js/app.js"></script>
+</body>
+</html>

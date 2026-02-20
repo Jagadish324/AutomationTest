@@ -1,0 +1,132 @@
+<%
+function statusBadge(status) {
+  const map = {
+    success:['&#10003; Success','success'], failed:['&#10007; Failed','failed'],
+    running:['&#9654; Running','running'],  unstable:['&#9888; Unstable','unstable'],
+    aborted:['&#8856; Aborted','aborted'],  disabled:['&#128683; Disabled','disabled']
+  };
+  const [label, cls] = map[status] || [status,'aborted'];
+  return `<span class="status-badge ${cls}">${label}</span>`;
+}
+function healthBar(score) {
+  const color = score>=80?'var(--success)':score>=50?'var(--warning)':'var(--danger)';
+  return `<div style="display:flex;align-items:center;gap:6px;">
+    <div class="progress-bar-container"><div class="progress-bar" style="width:${score}%;background:${color};"></div></div>
+    <span style="font-size:11px;color:var(--text-muted);">${score}%</span></div>`;
+}
+%>
+
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <div class="page-title">Job Management</div>
+    <div class="page-subtitle">Create, configure, trigger and monitor CI/CD jobs</div>
+  </div>
+  <div class="header-actions">
+    <a href="/jobs" class="btn btn-secondary">&#8635; Refresh</a>
+    <a href="/jobs/new" class="btn btn-primary">&#43; New Job</a>
+  </div>
+</div>
+
+<!-- Stat Strip -->
+<div class="stats-grid" style="grid-template-columns:repeat(5,1fr);">
+  <% [['blue','&#9881;',counts.all,'Total'],['green','&#10003;',counts.success,'Passing'],
+      ['red','&#10007;',counts.failed,'Failed'],['orange','&#9654;',counts.running,'Running'],
+      ['blue','&#128683;',counts.disabled,'Disabled']].forEach(([cls,icon,n,lbl]) => { %>
+  <div class="stat-card">
+    <div class="stat-icon <%= cls %>"><%- icon %></div>
+    <div class="stat-info"><div class="stat-value"><%= n %></div><div class="stat-label"><%= lbl %></div></div>
+  </div>
+  <% }); %>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+  <% [['all','All'],['success','Success'],['failed','Failed'],['running','Running'],['unstable','Unstable'],['disabled','Disabled']].forEach(([s,l]) => { %>
+  <a href="/jobs?status=<%= s %><%= currentQ ? '&q='+encodeURIComponent(currentQ) : '' %>"
+     class="filter-tab <%= currentStatus===s ? 'active' : '' %>">
+    <%= l %> <span class="tab-count"><%= counts[s] || 0 %></span>
+  </a>
+  <% }); %>
+  <form class="search-filter" action="/jobs" method="GET" style="margin-left:auto;">
+    <input type="hidden" name="status" value="<%= currentStatus %>" />
+    <span>&#128269;</span>
+    <input type="text" name="q" value="<%= currentQ %>" placeholder="Search jobs…" />
+  </form>
+</div>
+
+<!-- Jobs Table -->
+<div class="card">
+  <div class="table-container">
+    <% if (jobs.length === 0) { %>
+    <div class="empty-state">
+      <div class="empty-icon">&#9881;</div>
+      <p>No jobs found. <a href="/jobs/new" style="color:var(--info);">Create your first job</a></p>
+    </div>
+    <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Job Name</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Last Build</th>
+          <th>Build #</th>
+          <th>Duration</th>
+          <th>Health</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% jobs.forEach(job => { %>
+        <tr>
+          <td>
+            <div class="job-name-cell">
+              <div class="job-icon">
+                <% if (job.type==='Pipeline') { %>&#9654;
+                <% } else if (job.type==='Folder') { %>&#128193;
+                <% } else { %>&#9881;<% } %>
+              </div>
+              <div>
+                <a href="/jobs/<%= encodeURIComponent(job.name) %>" class="job-name"><%= job.name %></a>
+                <div class="job-desc"><%= (job.description||'').substring(0,55) || job.type %></div>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);"><%= job.type %></td>
+          <td><%- statusBadge(job.status) %></td>
+          <td style="font-size:12px;color:var(--text-muted);"><%= job.lastBuild %></td>
+          <td style="font-size:12px;">#<%= job.buildNumber %></td>
+          <td style="font-size:12px;color:var(--text-muted);"><%= job.duration %></td>
+          <td><%- healthBar(job.healthScore) %></td>
+          <td>
+            <div class="action-buttons">
+              <% if (job.status !== 'disabled' && job.status !== 'running' && job.buildable) { %>
+              <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>/build" style="display:inline;">
+                <button class="btn-icon btn-sm" title="Build Now">&#9654;</button>
+              </form>
+              <% } %>
+              <a href="/jobs/<%= encodeURIComponent(job.name) %>" class="btn-icon btn-sm" title="View">&#128269;</a>
+              <a href="/jobs/<%= encodeURIComponent(job.name) %>/edit" class="btn-icon btn-sm" title="Edit">&#9998;</a>
+              <% if (job.status === 'disabled') { %>
+              <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>/enable" style="display:inline;">
+                <button class="btn-icon btn-sm" title="Enable" style="color:var(--success);">&#9654;</button>
+              </form>
+              <% } else { %>
+              <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>/disable" style="display:inline;">
+                <button class="btn-icon btn-sm" title="Disable">&#128683;</button>
+              </form>
+              <% } %>
+              <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>?_method=DELETE"
+                    style="display:inline;" onsubmit="return confirm('Delete job &quot;<%= job.name %>&quot;? This cannot be undone.');">
+                <button class="btn-icon btn-sm" title="Delete" style="color:var(--danger);">&#128465;</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+</div>

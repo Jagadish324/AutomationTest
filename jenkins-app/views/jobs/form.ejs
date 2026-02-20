@@ -1,0 +1,101 @@
+<% const isEdit = !!(job && job.buildNumber !== undefined); %>
+
+<div class="page-header">
+  <div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">
+      <a href="/jobs" style="color:var(--info);">Jobs</a> / <%= isEdit ? 'Edit' : 'New Job' %>
+    </div>
+    <div class="page-title"><%= isEdit ? 'Edit: ' + job.name : 'Create New Job' %></div>
+  </div>
+  <a href="/jobs" class="btn btn-secondary">&#8592; Cancel</a>
+</div>
+
+<div class="card" style="max-width:720px;">
+  <div class="card-body">
+    <form method="POST" action="<%= action %>">
+
+      <!-- Job Name (readonly on edit) -->
+      <div class="form-group">
+        <label class="form-label">Job Name <span class="required">*</span></label>
+        <input type="text" name="name" class="form-control"
+               value="<%= job ? job.name : '' %>"
+               placeholder="e.g. my-app-build"
+               <%= isEdit ? 'readonly style="background:#f5f5f5;"' : '' %>
+               required />
+        <div class="form-hint">Lowercase letters, numbers and hyphens. Cannot be changed after creation.</div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Job Type <span class="required">*</span></label>
+          <select name="type" class="form-control">
+            <% ['Freestyle','Pipeline','Multibranch','Maven','Folder'].forEach(t => { %>
+            <option value="<%= t %>" <%= (job && job.type===t)?'selected':'' %>><%= t %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Build Trigger</label>
+          <select name="trigger" class="form-control">
+            <% ['Manual','SCM Poll','Webhook','Scheduled','Upstream'].forEach(t => { %>
+            <option value="<%= t %>" <%= (job && job.trigger===t)?'selected':'' %>><%= t %></option>
+            <% }); %>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="2"
+                  placeholder="Brief description…"><%= job ? job.description : '' %></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">SCM Repository URL</label>
+          <input type="text" name="repo" class="form-control"
+                 value="<%= job ? (job.repo||'') : '' %>"
+                 placeholder="https://github.com/org/repo.git" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Branch</label>
+          <input type="text" name="branch" class="form-control"
+                 value="<%= job ? (job.branch||'main') : 'main' %>"
+                 placeholder="main" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Build Tool</label>
+          <select name="buildTool" class="form-control">
+            <% ['Maven','Gradle','npm','Make','Ant','Shell'].forEach(t => { %>
+            <option value="<%= t %>" <%= (job && job.buildTool===t)?'selected':'' %>><%= t %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Node / Agent Label</label>
+          <input type="text" name="node" class="form-control"
+                 value="<%= job ? (job.node||'') : '' %>"
+                 placeholder="built-in" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" name="notifyEmail" value="1"
+                 <%= (job && job.notifyEmail) ? 'checked' : '' %> />
+          Enable email notifications on failure
+        </label>
+      </div>
+
+      <div class="modal-footer" style="border:none;padding:16px 0 0;justify-content:flex-end;">
+        <a href="/jobs" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+          &#10003; <%= isEdit ? 'Save Changes' : 'Create Job' %>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

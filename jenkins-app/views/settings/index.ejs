@@ -1,0 +1,121 @@
+<div class="page-header">
+  <div>
+    <div class="page-title">Connection Settings</div>
+    <div class="page-subtitle">Configure your Jenkins server connection</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+
+  <!-- Settings Form -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Jenkins Server</span>
+      <% if (configured) { %>
+        <span class="status-badge success">&#10003; Connected</span>
+      <% } else { %>
+        <span class="status-badge aborted">Not Connected</span>
+      <% } %>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="/settings" id="settingsForm">
+
+        <div class="form-group">
+          <label class="form-label">Jenkins URL <span class="required">*</span></label>
+          <input type="url" name="url" id="ci-url" class="form-control"
+                 value="<%= config.url || '' %>"
+                 placeholder="http://localhost:8080  or  https://jenkins.mycompany.com"
+                 required />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Username <span class="required">*</span></label>
+            <input type="text" name="username" id="ci-user" class="form-control"
+                   value="<%= config.username || '' %>"
+                   placeholder="admin" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">API Token <span class="required">*</span></label>
+            <input type="password" name="token" id="ci-token" class="form-control"
+                   value="<%= config.token || '' %>"
+                   placeholder="11abc123…" required />
+          </div>
+        </div>
+
+        <div id="testResult" style="margin-bottom:12px;font-size:13px;font-weight:500;min-height:20px;"></div>
+
+        <div class="modal-footer" style="border:none;padding:0;justify-content:space-between;">
+          <button type="button" class="btn btn-secondary" onclick="testConnection()">
+            &#9654; Test Connection
+          </button>
+          <button type="submit" class="btn btn-primary">&#10003; Save &amp; Connect</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- How-to info -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="card">
+      <div class="card-header"><span class="card-title">How to Get an API Token</span></div>
+      <div class="card-body" style="font-size:13px;line-height:1.8;">
+        <ol style="padding-left:18px;margin:0;">
+          <li>Log into your Jenkins server.</li>
+          <li>Click your username (top-right) → <strong>Configure</strong>.</li>
+          <li>Scroll to <strong>API Token</strong> → <strong>Add new Token</strong>.</li>
+          <li>Give it a name, click <strong>Generate</strong>, and copy the token.</li>
+          <li>Paste the token in the form on the left.</li>
+        </ol>
+      </div>
+    </div>
+
+    <% if (configured) { %>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Disconnect</span></div>
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
+          Remove the saved credentials from this server.
+        </p>
+        <form method="POST" action="/settings/disconnect"
+              onsubmit="return confirm('Disconnect from Jenkins?');">
+          <button class="btn btn-danger">&#128683; Disconnect</button>
+        </form>
+      </div>
+    </div>
+    <% } %>
+  </div>
+
+</div>
+
+<script>
+async function testConnection() {
+  const url   = document.getElementById('ci-url').value;
+  const user  = document.getElementById('ci-user').value;
+  const token = document.getElementById('ci-token').value;
+  const result = document.getElementById('testResult');
+
+  if (!url || !user || !token) {
+    result.style.color = 'var(--danger)';
+    result.textContent = '✗ Fill in URL, username and token first.';
+    return;
+  }
+
+  result.style.color = 'var(--info)';
+  result.textContent = '▶ Testing connection…';
+
+  try {
+    const res  = await fetch('/settings/test', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ url, username: user, token })
+    });
+    const data = await res.json();
+    result.style.color = data.ok ? 'var(--success)' : 'var(--danger)';
+    result.textContent = (data.ok ? '✓ ' : '✗ ') + data.message;
+  } catch (e) {
+    result.style.color = 'var(--danger)';
+    result.textContent = '✗ ' + e.message;
+  }
+}
+</script>

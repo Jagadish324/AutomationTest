@@ -1,0 +1,31 @@
+<aside class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Main</div>
+    <a href="/" class="sidebar-item <%= currentPath === '/' ? 'active' : '' %>">
+      <span class="item-icon">&#128202;</span> Dashboard
+    </a>
+    <a href="/jobs" class="sidebar-item <%= currentPath.startsWith('/jobs') ? 'active' : '' %>">
+      <span class="item-icon">&#9881;</span> Jobs
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Job Actions</div>
+    <a href="/jobs/new" class="sidebar-item">
+      <span class="item-icon">&#43;</span> New Job
+    </a>
+    <a href="/jobs?status=running" class="sidebar-item">
+      <span class="item-icon">&#9654;</span> Running
+    </a>
+    <a href="/jobs?status=failed" class="sidebar-item">
+      <span class="item-icon">&#10007;</span> Failed
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Administration</div>
+    <a href="/settings" class="sidebar-item <%= currentPath === '/settings' ? 'active' : '' %>">
+      <span class="item-icon">&#9881;</span> Settings
+    </a>
+  </div>
+</aside>

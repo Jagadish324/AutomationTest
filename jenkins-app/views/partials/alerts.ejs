@@ -1,0 +1,13 @@
+<% const types = ['success','error','info','warning'];
+   const icons = { success:'&#10003;', error:'&#10007;', info:'&#8505;', warning:'&#9888;' }; %>
+<% types.forEach(type => { %>
+  <% if (flash[type] && flash[type].length) { %>
+    <% flash[type].forEach(msg => { %>
+      <div class="alert alert-<%= type %>" role="alert">
+        <span class="alert-icon"><%= icons[type] %></span>
+        <span><%= msg %></span>
+        <button class="alert-close" onclick="this.parentElement.remove()">&#10005;</button>
+      </div>
+    <% }); %>
+  <% } %>
+<% }); %>

@@ -1,0 +1,198 @@
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <div class="page-title">Dashboard</div>
+    <div class="page-subtitle">CI/CD pipeline health &amp; activity</div>
+  </div>
+  <div class="header-actions">
+    <a href="/" class="btn btn-secondary">&#8635; Refresh</a>
+    <a href="/jobs/new" class="btn btn-primary">&#43; New Job</a>
+  </div>
+</div>
+
+<% if (!configured) { %>
+<div class="alert alert-warning" style="margin-bottom:20px;">
+  <span class="alert-icon">&#9888;</span>
+  Jenkins is not connected. Showing placeholder data.
+  <a href="/settings" style="font-weight:700; margin-left:8px;">Configure connection &rarr;</a>
+  <button class="alert-close" onclick="this.parentElement.remove()">&#10005;</button>
+</div>
+<% } %>
+
+<!-- Stat Cards -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon blue">&#9881;</div>
+    <div class="stat-info">
+      <div class="stat-value"><%= stats.total %></div>
+      <div class="stat-label">Total Jobs</div>
+      <div class="stat-change up">&#8593; <%= stats.passRate %>% pass rate</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">&#10003;</div>
+    <div class="stat-info">
+      <div class="stat-value"><%= stats.success %></div>
+      <div class="stat-label">Passing</div>
+      <div class="stat-change up">Last build success</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red">&#10007;</div>
+    <div class="stat-info">
+      <div class="stat-value"><%= stats.failed %></div>
+      <div class="stat-label">Failed</div>
+      <div class="stat-change down"><%= stats.unstable %> unstable</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon orange">&#9654;</div>
+    <div class="stat-info">
+      <div class="stat-value"><%= stats.running %></div>
+      <div class="stat-label">Running Now</div>
+      <div class="stat-change" style="color:var(--info);"><%= queue.length %> in queue</div>
+    </div>
+  </div>
+</div>
+
+<!-- Two-column layout -->
+<div class="dashboard-grid">
+
+  <!-- Left: Jobs overview -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Jobs Overview</span>
+      <a href="/jobs" class="btn btn-primary btn-sm">Manage Jobs</a>
+    </div>
+    <div class="table-container">
+      <% if (jobs.length === 0) { %>
+        <div class="empty-state">
+          <div class="empty-icon">&#9881;</div>
+          <p><% if (configured) { %>No jobs found.<% } else { %>Connect Jenkins to see real jobs.<% } %></p>
+        </div>
+      <% } else { %>
+      <table>
+        <thead>
+          <tr>
+            <th>Job</th>
+            <th>Status</th>
+            <th>Last Build</th>
+            <th>Health</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% jobs.forEach(job => { %>
+          <tr>
+            <td>
+              <div class="job-name-cell">
+                <div class="job-icon">
+                  <% if (job.type==='Pipeline') { %>&#9654;
+                  <% } else if (job.type==='Folder') { %>&#128193;
+                  <% } else { %>&#9881;<% } %>
+                </div>
+                <div>
+                  <a href="/jobs/<%= encodeURIComponent(job.name) %>" class="job-name"><%= job.name %></a>
+                  <div class="job-desc"><%= job.description.substring(0,55) || job.type %></div>
+                </div>
+              </div>
+            </td>
+            <td><%- statusBadge(job.status) %></td>
+            <td style="font-size:12px;color:var(--text-muted);"><%= job.lastBuild %></td>
+            <td><%- healthBar(job.healthScore) %></td>
+            <td>
+              <div class="action-buttons">
+                <% if (job.status !== 'disabled' && job.status !== 'running' && job.buildable) { %>
+                <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>/build" style="display:inline;">
+                  <button class="btn-icon btn-sm" title="Build Now">&#9654;</button>
+                </form>
+                <% } %>
+                <a href="/jobs/<%= encodeURIComponent(job.name) %>" class="btn-icon btn-sm" title="View">&#128269;</a>
+              </div>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Right: Queue + Executors -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- Build Queue -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Build Queue</span>
+        <span class="status-badge queued"><%= queue.length %> waiting</span>
+      </div>
+      <div class="card-body" style="padding-top:0;padding-bottom:0;">
+        <% if (queue.length === 0) { %>
+          <p style="padding:16px 0;font-size:13px;color:var(--text-muted);">Queue is empty</p>
+        <% } else { %>
+        <ul class="queue-list">
+          <% queue.forEach(item => { %>
+          <li class="queue-item">
+            <div>
+              <div class="queue-name"><%= item.name %></div>
+              <div style="font-size:11px;color:var(--text-muted);"><%= item.why %></div>
+            </div>
+            <span class="status-badge queued"><%= item.since %></span>
+          </li>
+          <% }); %>
+        </ul>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Executors -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Build Executors</span>
+      </div>
+      <div class="card-body">
+        <% if (executors.length === 0) { %>
+          <p style="font-size:13px;color:var(--text-muted);">No executor data available.</p>
+        <% } else { %>
+        <div class="executor-grid">
+          <% executors.forEach(ex => { %>
+          <div class="executor-card">
+            <div class="executor-name"><%= ex.name %></div>
+            <div class="executor-status" style="color:<%= ex.offline ? 'var(--danger)' : ex.load > 0 ? 'var(--info)' : 'var(--success)' %>;font-size:11px;">
+              &#9679; <%= ex.status %>
+            </div>
+            <div class="executor-bar">
+              <div class="executor-bar-fill" style="width:<%= ex.load %>%;"></div>
+            </div>
+          </div>
+          <% }); %>
+        </div>
+        <% } %>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<% /* ── Helpers available inside EJS ── */
+function statusBadge(status) {
+  const map = {
+    success: ['&#10003; Success','success'],
+    failed:  ['&#10007; Failed','failed'],
+    running: ['&#9654; Running','running'],
+    unstable:['&#9888; Unstable','unstable'],
+    aborted: ['&#8856; Aborted','aborted'],
+    disabled:['&#128683; Disabled','disabled']
+  };
+  const [label, cls] = map[status] || [status, 'aborted'];
+  return `<span class="status-badge ${cls}">${label}</span>`;
+}
+function healthBar(score) {
+  const color = score >= 80 ? 'var(--success)' : score >= 50 ? 'var(--warning)' : 'var(--danger)';
+  return `<div style="display:flex;align-items:center;gap:6px;">
+    <div class="progress-bar-container"><div class="progress-bar" style="width:${score}%;background:${color};"></div></div>
+    <span style="font-size:11px;color:var(--text-muted);">${score}%</span>
+  </div>`;
+}
+%>
