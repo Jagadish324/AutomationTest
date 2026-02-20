@@ -167,7 +167,7 @@ const JobsController = {
     }
   },
 
-  /* GET /jobs/*/edit */
+  // GET /jobs/*/edit
   async edit(req, res) {
     const fullPath = jobPath(req);
     try {
@@ -190,7 +190,7 @@ const JobsController = {
     }
   },
 
-  /* PUT /jobs/* */
+  // PUT /jobs/*
   async update(req, res) {
     const fullPath = jobPath(req);
     try {
@@ -212,7 +212,7 @@ const JobsController = {
     }
   },
 
-  /* DELETE /jobs/* */
+  // DELETE /jobs/*
   async destroy(req, res) {
     const fullPath = jobPath(req);
     // Parent folder to redirect back to after deletion
@@ -227,7 +227,7 @@ const JobsController = {
     res.redirect(parent);
   },
 
-  /* POST /jobs/*/build */
+  // POST /jobs/*/build
   async build(req, res) {
     const fullPath = jobPath(req);
     try {
@@ -239,7 +239,7 @@ const JobsController = {
     res.redirect(req.get('Referer') || `/jobs/${urlPath(fullPath)}`);
   },
 
-  /* POST /jobs/*/disable */
+  // POST /jobs/*/disable
   async disable(req, res) {
     const fullPath = jobPath(req);
     try {
@@ -251,7 +251,7 @@ const JobsController = {
     res.redirect(req.get('Referer') || '/jobs');
   },
 
-  /* POST /jobs/*/enable */
+  // POST /jobs/*/enable
   async enable(req, res) {
     const fullPath = jobPath(req);
     try {
@@ -263,7 +263,7 @@ const JobsController = {
     res.redirect(req.get('Referer') || '/jobs');
   },
 
-  /* GET /jobs/*/builds/:num/console */
+  // GET /jobs/*/builds/:num/console
   async console(req, res) {
     const fullPath = jobPath(req);
     const num      = req.params[1];
