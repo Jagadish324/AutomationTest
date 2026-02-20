@@ -5,6 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jenkins - Dashboard</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* ── Connection status chip ── */
+    .conn-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: none; transition: opacity .2s;
+    }
+    .conn-chip:hover { opacity: .85; }
+    .conn-chip.demo     { background: rgba(255,255,255,.12); color: rgba(255,255,255,.7); }
+    .conn-chip.connected{ background: #e8f5e9; color: #2e7d32; }
+    .conn-chip.error    { background: #ffebee; color: #c62828; }
+    .conn-chip.loading  { background: rgba(255,255,255,.12); color: rgba(255,255,255,.7); }
+    .conn-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .conn-dot.demo      { background: #9e9e9e; }
+    .conn-dot.connected { background: #4caf50; }
+    .conn-dot.error     { background: #f44336; }
+
+    /* ── Connection settings modal ── */
+    .settings-section { margin-bottom: 20px; }
+    .settings-section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text-muted); margin-bottom: 10px;
+    }
+    .info-box {
+      background: #e3f2fd; border-left: 3px solid var(--info);
+      padding: 10px 14px; border-radius: 0 6px 6px 0;
+      font-size: 12px; color: #1565c0; line-height: 1.6;
+    }
+    .info-box code {
+      background: rgba(0,0,0,.08); padding: 1px 5px; border-radius: 3px;
+      font-family: monospace;
+    }
+    #connStatus { margin: 8px 0 0; font-size: 13px; font-weight: 500; min-height: 20px; }
+  </style>
 </head>
 <body>
 
@@ -19,6 +53,12 @@
       <input type="text" placeholder="Search jobs, builds..." id="globalSearch" />
     </div>
     <div class="navbar-actions">
+      <!-- Connection status chip -->
+      <button class="conn-chip demo" id="connChip" onclick="openModal('connModal')" title="Jenkins connection settings">
+        <span class="conn-dot demo" id="connDot"></span>
+        <span id="connLabel">Demo Mode</span>
+      </button>
+
       <button class="icon-btn" title="Build Queue" onclick="window.location.href='jobs.html'">
         &#9776;
       </button>
@@ -26,7 +66,7 @@
         &#128276;
         <span class="badge">3</span>
       </button>
-      <button class="icon-btn" title="Settings">&#9881;</button>
+      <button class="icon-btn" title="Connection Settings" onclick="openModal('connModal')">&#9881;</button>
       <div class="user-avatar" title="admin">AD</div>
     </div>
   </nav>
@@ -229,14 +269,101 @@
     </div>
   </main>
 
+  <!-- ========== CONNECTION SETTINGS MODAL ========== -->
+  <div class="modal-overlay" id="connModal">
+    <div class="modal" style="width:580px;">
+      <div class="modal-header">
+        <span class="modal-title">&#9881; Jenkins Connection Settings</span>
+        <button class="modal-close" onclick="closeModal('connModal')">&#10005;</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- How-to box -->
+        <div class="settings-section">
+          <div class="info-box">
+            <strong>How to connect:</strong><br/>
+            1. Start the proxy: <code>node jenkins-ui/proxy-server.js</code><br/>
+            2. Enter your Jenkins URL, username and API token below.<br/>
+            3. Get an API token: Jenkins &rarr; <em>Your name</em> &rarr; Configure &rarr; API Token &rarr; Add new token.<br/>
+            4. Direct mode (no proxy) requires the
+            <a href="https://plugins.jenkins.io/cors-filter/" target="_blank" style="color:var(--info);">CORS Filter plugin</a>
+            installed on Jenkins.
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Jenkins Server</div>
+          <div class="form-group">
+            <label class="form-label">Jenkins URL <span class="required">*</span></label>
+            <input type="url" id="ci-url" class="form-control"
+                   placeholder="http://localhost:8080  or  https://jenkins.mycompany.com" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Username <span class="required">*</span></label>
+              <input type="text" id="ci-user" class="form-control" placeholder="admin" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">API Token <span class="required">*</span></label>
+              <input type="password" id="ci-token" class="form-control" placeholder="11abc123..." />
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Connection Mode</div>
+          <div class="form-group">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="ci-use-proxy" checked onchange="toggleProxyPort()" />
+              <span style="font-size:13px; font-weight:600;">Use local proxy server</span>
+              <span style="font-size:12px; color:var(--text-muted);">(recommended – avoids CORS)</span>
+            </label>
+          </div>
+          <div id="proxyPortRow" class="form-group">
+            <label class="form-label">Proxy Port</label>
+            <input type="number" id="ci-proxy-port" class="form-control"
+                   value="3000" placeholder="3000" style="width:120px;" />
+            <div class="form-hint">Default: 3000 &nbsp;·&nbsp; Run: <code>node proxy-server.js</code></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Auto-Refresh</div>
+          <div class="form-group">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="ci-auto-refresh" checked />
+              <span style="font-size:13px; font-weight:600;">Auto-refresh every</span>
+            </label>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+              <input type="number" id="ci-refresh-interval" class="form-control"
+                     value="30" min="5" style="width:80px;" />
+              <span style="font-size:13px; color:var(--text-muted);">seconds</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="connStatus"></div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn btn-danger btn-sm" onclick="disconnectJenkins()">Disconnect</button>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" onclick="testJenkinsConnection()">&#9654; Test Connection</button>
+          <button class="btn btn-primary" onclick="saveJenkinsConnection()">&#10003; Save &amp; Connect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
+  <script src="js/config.js"></script>
+  <script src="js/jenkins-api.js"></script>
   <script src="js/data.js"></script>
   <script src="js/app.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      renderDashboard();
+      initPage().then(renderDashboard);
     });
   </script>
 </body>

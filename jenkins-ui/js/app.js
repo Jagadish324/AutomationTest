@@ -10,6 +10,181 @@ let currentFilter = 'all';
 let currentSort = { field: null, asc: true };
 let jobToDelete = null;
 let selectedJobs = new Set();
+let _autoRefreshTimer = null;
+
+/* ================================================
+   PAGE INIT  –  connect to real Jenkins if configured
+   ================================================ */
+
+async function initPage() {
+  populateConnModal();
+  updateConnChip();
+
+  if (JenkinsConfig.isConfigured()) {
+    setConnChip('loading', 'Connecting…');
+    try {
+      await JenkinsAPI.syncToLocalStorage();
+      setConnChip('connected', hostLabel());
+      startAutoRefresh();
+    } catch (e) {
+      setConnChip('error', 'Connection failed');
+      showToast('Could not reach Jenkins: ' + e.message, 'error');
+    }
+  }
+}
+
+function hostLabel() {
+  const cfg = JenkinsConfig.get();
+  if (!cfg) return 'Jenkins';
+  try { return new URL(cfg.url).hostname; } catch (_) { return cfg.url; }
+}
+
+/* ── Connection chip ───────────────────────────────── */
+
+function setConnChip(state, label) {
+  const chip = document.getElementById('connChip');
+  const dot  = document.getElementById('connDot');
+  const lbl  = document.getElementById('connLabel');
+  if (!chip) return;
+  chip.className = 'conn-chip ' + state;
+  dot.className  = 'conn-dot '  + state;
+  lbl.textContent = label;
+}
+
+function updateConnChip() {
+  if (JenkinsConfig.isConfigured()) {
+    setConnChip('connected', hostLabel());
+  } else {
+    setConnChip('demo', 'Demo Mode');
+  }
+}
+
+/* ── Auto refresh ──────────────────────────────────── */
+
+function startAutoRefresh() {
+  const cfg = JenkinsConfig.get();
+  if (!cfg || !cfg.autoRefresh) return;
+  const secs = Math.max(5, cfg.refreshInterval || 30);
+  _autoRefreshTimer = setInterval(async function () {
+    try {
+      await JenkinsAPI.syncToLocalStorage();
+      // Re-render whichever page is visible
+      if (document.getElementById('dashboardJobTable')) renderDashboard();
+      if (document.getElementById('jobsTableBody'))     renderJobsPage();
+    } catch (_) { /* silently ignore auto-refresh errors */ }
+  }, secs * 1000);
+}
+
+function stopAutoRefresh() {
+  if (_autoRefreshTimer) { clearInterval(_autoRefreshTimer); _autoRefreshTimer = null; }
+}
+
+/* ================================================
+   CONNECTION SETTINGS MODAL LOGIC
+   ================================================ */
+
+function populateConnModal() {
+  const cfg = JenkinsConfig.get();
+  if (!cfg) return;
+  setValue('ci-url',              cfg.url              || '');
+  setValue('ci-user',             cfg.username         || '');
+  setValue('ci-token',            cfg.token            || '');
+  setValue('ci-proxy-port',       cfg.proxyPort        || 3000);
+  setValue('ci-refresh-interval', cfg.refreshInterval  || 30);
+  setChecked('ci-use-proxy',      cfg.useProxy !== false);
+  setChecked('ci-auto-refresh',   cfg.autoRefresh !== false);
+  toggleProxyPort();
+}
+
+function toggleProxyPort() {
+  const row = document.getElementById('proxyPortRow');
+  if (!row) return;
+  row.style.display = document.getElementById('ci-use-proxy').checked ? '' : 'none';
+}
+
+async function testJenkinsConnection() {
+  const url   = (document.getElementById('ci-url')   || {}).value || '';
+  const user  = (document.getElementById('ci-user')  || {}).value || '';
+  const token = (document.getElementById('ci-token') || {}).value || '';
+  if (!url || !user || !token) {
+    setConnStatus('error', '&#10007; Fill in URL, username and token first.');
+    return;
+  }
+  // Temporarily apply config for the test
+  const prev = JenkinsConfig.get();
+  JenkinsConfig.save({
+    url, username: user, token,
+    useProxy:        document.getElementById('ci-use-proxy').checked,
+    proxyPort:       parseInt(document.getElementById('ci-proxy-port').value) || 3000,
+    autoRefresh:     document.getElementById('ci-auto-refresh').checked,
+    refreshInterval: parseInt(document.getElementById('ci-refresh-interval').value) || 30
+  });
+  setConnStatus('info', '&#9656; Testing connection…');
+  try {
+    const info = await JenkinsAPI.testConnection();
+    setConnStatus('success',
+      '&#10003; Connected!  Jenkins ' + (info.version || '') +
+      (info.nodeName ? '  ·  Node: ' + info.nodeName : ''));
+  } catch (e) {
+    setConnStatus('error', '&#10007; ' + e.message);
+    if (prev) JenkinsConfig.save(prev); else JenkinsConfig.clear();
+  }
+}
+
+async function saveJenkinsConnection() {
+  const url   = (document.getElementById('ci-url')   || {}).value || '';
+  const user  = (document.getElementById('ci-user')  || {}).value || '';
+  const token = (document.getElementById('ci-token') || {}).value || '';
+  if (!url || !user || !token) {
+    setConnStatus('error', '&#10007; URL, username and token are required.');
+    return;
+  }
+  JenkinsConfig.save({
+    url, username: user, token,
+    useProxy:        document.getElementById('ci-use-proxy').checked,
+    proxyPort:       parseInt(document.getElementById('ci-proxy-port').value) || 3000,
+    autoRefresh:     document.getElementById('ci-auto-refresh').checked,
+    refreshInterval: parseInt(document.getElementById('ci-refresh-interval').value) || 30
+  });
+  setConnStatus('info', '&#9656; Connecting…');
+  try {
+    await JenkinsAPI.syncToLocalStorage();
+    setConnStatus('success', '&#10003; Connected and synced!');
+    setConnChip('connected', hostLabel());
+    stopAutoRefresh();
+    startAutoRefresh();
+    closeModal('connModal');
+    showToast('Connected to Jenkins: ' + hostLabel(), 'success');
+    // Re-render
+    if (document.getElementById('dashboardJobTable')) renderDashboard();
+    if (document.getElementById('jobsTableBody'))     renderJobsPage();
+  } catch (e) {
+    setConnStatus('error', '&#10007; ' + e.message);
+  }
+}
+
+function disconnectJenkins() {
+  stopAutoRefresh();
+  JenkinsConfig.clear();
+  JenkinsData.resetToDefaults();
+  setConnChip('demo', 'Demo Mode');
+  closeModal('connModal');
+  showToast('Disconnected – showing demo data', 'info');
+  if (document.getElementById('dashboardJobTable')) renderDashboard();
+  if (document.getElementById('jobsTableBody'))     renderJobsPage();
+}
+
+function setConnStatus(type, msg) {
+  const el = document.getElementById('connStatus');
+  if (!el) return;
+  const colors = { success: 'var(--success)', error: 'var(--danger)', info: 'var(--info)' };
+  el.style.color = colors[type] || '';
+  el.innerHTML   = msg;
+}
+
+/* ── small helpers ─────────────────────────────────── */
+function setValue(id, v)   { const e = document.getElementById(id); if (e) e.value   = v; }
+function setChecked(id, v) { const e = document.getElementById(id); if (e) e.checked = v; }
 
 /* ================================================
    TOAST NOTIFICATIONS
@@ -180,12 +355,17 @@ function renderRecentBuilds(jobs) {
   }).join('');
 }
 
-function renderBuildQueue() {
+async function renderBuildQueue() {
   const list = document.getElementById('buildQueue');
   const badge = document.getElementById('queue-count-badge');
   if (!list) return;
 
-  const queue = JenkinsData.getQueue();
+  let queue;
+  if (JenkinsConfig.isConfigured()) {
+    try { queue = await JenkinsAPI.getQueue(); } catch (_) { queue = JenkinsData.getQueue(); }
+  } else {
+    queue = JenkinsData.getQueue();
+  }
   if (badge) badge.textContent = queue.length + ' waiting';
 
   if (queue.length === 0) {
@@ -222,11 +402,16 @@ function renderJobHealth(jobs) {
   }).join('');
 }
 
-function renderExecutors() {
+async function renderExecutors() {
   const grid = document.getElementById('executorGrid');
   if (!grid) return;
 
-  const executors = JenkinsData.getExecutors();
+  let executors;
+  if (JenkinsConfig.isConfigured()) {
+    try { executors = await JenkinsAPI.getExecutors(); } catch (_) { executors = JenkinsData.getExecutors(); }
+  } else {
+    executors = JenkinsData.getExecutors();
+  }
   grid.innerHTML = executors.map(function (ex) {
     const statusColor = ex.status === 'Offline' ? 'var(--danger)' : ex.load > 0 ? 'var(--info)' : 'var(--success)';
     return `
@@ -273,9 +458,21 @@ function renderDashboardTable(jobs) {
   }).join('');
 }
 
-function refreshDashboard() {
+async function refreshDashboard() {
+  if (JenkinsConfig.isConfigured()) {
+    setConnChip('loading', 'Syncing…');
+    try {
+      await JenkinsAPI.syncToLocalStorage();
+      setConnChip('connected', hostLabel());
+      showToast('Dashboard refreshed from Jenkins', 'success');
+    } catch (e) {
+      setConnChip('error', 'Sync failed');
+      showToast('Refresh failed: ' + e.message, 'error');
+    }
+  } else {
+    showToast('Dashboard refreshed', 'success');
+  }
   renderDashboard();
-  showToast('Dashboard refreshed', 'success');
 }
 
 function quickBuild(id) {
@@ -429,9 +626,21 @@ function filterJobsTable() {
   renderJobsTable();
 }
 
-function refreshJobs() {
+async function refreshJobs() {
+  if (JenkinsConfig.isConfigured()) {
+    setConnChip('loading', 'Syncing…');
+    try {
+      await JenkinsAPI.syncToLocalStorage();
+      setConnChip('connected', hostLabel());
+      showToast('Jobs refreshed from Jenkins', 'success');
+    } catch (e) {
+      setConnChip('error', 'Sync failed');
+      showToast('Refresh failed: ' + e.message, 'error');
+    }
+  } else {
+    showToast('Jobs refreshed', 'success');
+  }
   renderJobsPage();
-  showToast('Jobs refreshed', 'success');
 }
 
 /* ================================================
@@ -542,7 +751,7 @@ function clearJobForm() {
   if (el) el.checked = false;
 }
 
-function saveJob() {
+async function saveJob() {
   const name = (document.getElementById('jobName').value || '').trim();
   if (!name) {
     showToast('Job name is required!', 'error');
@@ -564,6 +773,27 @@ function saveJob() {
   };
 
   const editId = document.getElementById('editJobId').value;
+
+  if (JenkinsConfig.isConfigured()) {
+    try {
+      if (editId) {
+        const existingJob = JenkinsData.getJob(editId);
+        await JenkinsAPI.updateJob(existingJob ? existingJob.name : editId, data);
+        showToast('Job "' + name + '" updated on Jenkins!', 'success');
+      } else {
+        await JenkinsAPI.createJob(data);
+        showToast('Job "' + name + '" created on Jenkins!', 'success');
+      }
+      await JenkinsAPI.syncToLocalStorage();
+    } catch (e) {
+      showToast('Save failed: ' + e.message, 'error');
+    }
+    closeModal('jobModal');
+    renderJobsPage();
+    return;
+  }
+
+  // Demo mode
   if (editId) {
     JenkinsData.updateJob(editId, data);
     showToast('Job "' + name + '" updated successfully!', 'success');
@@ -659,17 +889,38 @@ function viewJob(id) {
    BUILD ACTIONS
    ================================================ */
 
-function buildJob(id) {
+async function buildJob(id) {
   const job = JenkinsData.getJob(id);
   if (!job) return;
   if (job.status === 'disabled') {
     showToast('Cannot build a disabled job. Enable it first.', 'warning');
     return;
   }
+
+  if (JenkinsConfig.isConfigured()) {
+    try {
+      await JenkinsAPI.triggerBuild(job.name);
+      showToast('&#9654; Build queued: ' + job.name, 'info');
+      // Poll for status change (Jenkins can take a moment to schedule)
+      setTimeout(async function () {
+        try {
+          await JenkinsAPI.syncToLocalStorage();
+          if (document.getElementById('jobsTableBody'))     renderJobsPage();
+          if (document.getElementById('dashboardJobTable')) renderDashboard();
+        } catch (_) {}
+      }, 3000);
+    } catch (e) {
+      showToast('Build trigger failed: ' + e.message, 'error');
+    }
+    return;
+  }
+
+  // Demo mode
   JenkinsData.triggerBuild(id);
   showToast('&#9654; Build triggered: ' + job.name + ' #' + (job.buildNumber + 1), 'info');
   setTimeout(function () {
-    renderJobsPage();
+    if (document.getElementById('jobsTableBody'))     renderJobsPage();
+    if (document.getElementById('dashboardJobTable')) renderDashboard();
     showToast('Build completed for: ' + job.name, 'success');
   }, 4200);
   renderJobsPage();
@@ -679,7 +930,28 @@ function buildJob(id) {
    DISABLE / ENABLE
    ================================================ */
 
-function toggleDisableJob(id) {
+async function toggleDisableJob(id) {
+  const job = JenkinsData.getJob(id);
+  if (!job) return;
+
+  if (JenkinsConfig.isConfigured()) {
+    try {
+      if (job.status === 'disabled') {
+        await JenkinsAPI.enableJob(job.name);
+        showToast('Job "' + job.name + '" enabled', 'success');
+      } else {
+        await JenkinsAPI.disableJob(job.name);
+        showToast('Job "' + job.name + '" disabled', 'warning');
+      }
+      await JenkinsAPI.syncToLocalStorage();
+      renderJobsPage();
+    } catch (e) {
+      showToast('Action failed: ' + e.message, 'error');
+    }
+    return;
+  }
+
+  // Demo mode
   const result = JenkinsData.toggleDisable(id);
   if (result) {
     const msg = result.status === 'disabled'
@@ -701,11 +973,28 @@ function promptDeleteJob(id, name) {
   openModal('deleteModal');
 }
 
-function confirmDelete() {
+async function confirmDelete() {
   if (!jobToDelete) return;
   const job = JenkinsData.getJob(jobToDelete);
+  const name = job ? job.name : jobToDelete;
+
+  if (JenkinsConfig.isConfigured()) {
+    try {
+      await JenkinsAPI.deleteJob(name);
+      JenkinsData.deleteJob(jobToDelete);        // remove from local cache too
+      showToast('Job "' + name + '" deleted from Jenkins', 'error');
+    } catch (e) {
+      showToast('Delete failed: ' + e.message, 'error');
+    }
+    jobToDelete = null;
+    closeModal('deleteModal');
+    renderJobsPage();
+    return;
+  }
+
+  // Demo mode
   JenkinsData.deleteJob(jobToDelete);
-  showToast('Job "' + (job ? job.name : jobToDelete) + '" deleted', 'error');
+  showToast('Job "' + name + '" deleted', 'error');
   jobToDelete = null;
   closeModal('deleteModal');
   renderJobsPage();
@@ -715,19 +1004,26 @@ function confirmDelete() {
    BUILD CONSOLE LOG
    ================================================ */
 
-function showBuildLog(id) {
+async function showBuildLog(id) {
   const job = JenkinsData.getJob(id);
   if (!job) return;
 
   setText('logModalTitle', 'Console Output - ' + job.name + ' #' + job.buildNumber);
-
-  const logs = generateFakeLog(job);
-  document.getElementById('consoleOutput').innerHTML = logs;
-
+  const output = document.getElementById('consoleOutput');
+  output.textContent = 'Loading…';
   openModal('logModal');
 
-  // scroll to bottom
-  const output = document.getElementById('consoleOutput');
+  if (JenkinsConfig.isConfigured() && job.buildNumber > 0) {
+    try {
+      const text = await JenkinsAPI.getConsoleOutput(job.name, job.buildNumber);
+      output.textContent = text;
+    } catch (e) {
+      output.textContent = 'Could not load log: ' + e.message + '\n\n' + generateFakeLog(job);
+    }
+  } else {
+    output.innerHTML = generateFakeLog(job);
+  }
+
   setTimeout(function () { output.scrollTop = output.scrollHeight; }, 100);
 }
 
