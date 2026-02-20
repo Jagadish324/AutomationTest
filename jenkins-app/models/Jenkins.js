@@ -5,6 +5,11 @@
  * =============
  * Wraps all Jenkins REST API calls.
  * API calls run server-side → no CORS issues.
+ *
+ * All job-facing methods accept a `fullPath` parameter which
+ * is the slash-separated job name, e.g. "TeamA/Frontend/deploy".
+ * Internally this is converted to the /job/TeamA/job/Frontend/job/deploy
+ * URL structure that Jenkins uses for nested folders.
  */
 
 const axios = require('axios');
@@ -13,20 +18,20 @@ const { getConfig } = require('../config/jenkins');
 
 /* ── Status helpers ──────────────────────────────── */
 const COLOR_STATUS = {
-  blue:          'success',
-  blue_anime:    'running',
-  red:           'failed',
-  red_anime:     'running',
-  yellow:        'unstable',
-  yellow_anime:  'running',
-  grey:          'aborted',
-  grey_anime:    'running',
-  disabled:      'disabled',
-  disabled_anime:'running',
-  notbuilt:      'aborted',
-  notbuilt_anime:'running',
-  aborted:       'aborted',
-  aborted_anime: 'running'
+  blue:           'success',
+  blue_anime:     'running',
+  red:            'failed',
+  red_anime:      'running',
+  yellow:         'unstable',
+  yellow_anime:   'running',
+  grey:           'aborted',
+  grey_anime:     'running',
+  disabled:       'disabled',
+  disabled_anime: 'running',
+  notbuilt:       'aborted',
+  notbuilt_anime: 'running',
+  aborted:        'aborted',
+  aborted_anime:  'running'
 };
 
 function colorToStatus(color) {
@@ -54,6 +59,8 @@ function xmlEscape(s) {
   );
 }
 
+function enc(s) { return encodeURIComponent(s); }
+
 /* ── Jenkins API client ──────────────────────────── */
 class JenkinsClient {
   constructor() {
@@ -64,20 +71,35 @@ class JenkinsClient {
   _http() {
     const cfg = getConfig();
     return axios.create({
-      baseURL:      cfg.url.replace(/\/$/, ''),
-      auth:         { username: cfg.username, password: cfg.token },
-      timeout:      15000,
-      httpsAgent:   new https.Agent({ rejectUnauthorized: false }),
-      maxRedirects: 0,
+      baseURL:        cfg.url.replace(/\/$/, ''),
+      auth:           { username: cfg.username, password: cfg.token },
+      timeout:        15000,
+      httpsAgent:     new https.Agent({ rejectUnauthorized: false }),
+      maxRedirects:   0,
       validateStatus: s => s < 400 || s === 302 || s === 303
     });
+  }
+
+  /**
+   * Convert a slash-separated full path to a Jenkins REST API URL segment.
+   * e.g. "TeamA/Frontend/deploy" → "/job/TeamA/job/Frontend/job/deploy"
+   */
+  _jobUrl(fullPath) {
+    if (!fullPath) return '';
+    return '/' + fullPath.split('/').map(s => `job/${enc(s)}`).join('/');
+  }
+
+  /** Returns true when a Jenkins _class string represents a folder */
+  _isFolder(cls) {
+    const c = (cls || '').toLowerCase();
+    return c.includes('folder') || c.includes('organizationfolder');
   }
 
   /* Fetch CSRF crumb (cached per instance restart) */
   async _crumbHeaders() {
     if (this._crumb) return { [this._crumb.field]: this._crumb.value };
     try {
-      const res  = await this._http().get('/crumbIssuer/api/json');
+      const res   = await this._http().get('/crumbIssuer/api/json');
       this._crumb = { field: res.data.crumbRequestField, value: res.data.crumb };
       return { [this._crumb.field]: this._crumb.value };
     } catch (_) {
@@ -92,7 +114,7 @@ class JenkinsClient {
     return res.data;
   }
 
-  /* ── Jobs ───────────────────────────────────── */
+  /* ── Jobs (top-level list) ───────────────────── */
 
   async getJobs() {
     const tree = [
@@ -101,23 +123,57 @@ class JenkinsClient {
       'healthReport[score,description]]'
     ].join('');
     const res = await this._http().get(`/api/json?tree=${encodeURIComponent(tree)}`);
-    return (res.data.jobs || []).map(j => this._transformJob(j));
+    return (res.data.jobs || []).map(j => ({
+      ...this._transformJob(j),
+      fullPath: j.name,
+      isFolder: this._isFolder(j._class)
+    }));
   }
 
-  async getJob(name) {
+  /**
+   * Fetch the contents of a folder (or root when folderPath is empty).
+   * Returns { name, description, _class, isFolder, jobs: [...] }
+   * Each job in the list has fullPath set (parentPath/childName).
+   */
+  async getFolderContents(folderPath) {
+    const tree = [
+      '_class,name,description,',
+      'jobs[name,_class,color,buildable,description,url,',
+      'lastBuild[number,duration,timestamp,result],',
+      'healthReport[score,description]]'
+    ].join('');
+    const base = folderPath ? this._jobUrl(folderPath) : '';
+    const res  = await this._http().get(`${base}/api/json?tree=${encodeURIComponent(tree)}`);
+    const d    = res.data;
+    return {
+      name:        d.name        || 'Jenkins',
+      description: d.description || '',
+      _class:      d._class      || '',
+      isFolder:    this._isFolder(d._class),
+      jobs: (d.jobs || []).map(j => ({
+        ...this._transformJob(j),
+        fullPath: folderPath ? `${folderPath}/${j.name}` : j.name,
+        isFolder: this._isFolder(j._class)
+      }))
+    };
+  }
+
+  /** Fetch a single job's full detail, including build history */
+  async getJob(fullPath) {
     const tree = [
       'name,_class,color,buildable,description,url,',
       'builds[number,result,duration,timestamp]{0,15},',
       'healthReport[score,description],',
       'lastBuild[number,duration,timestamp,result]'
     ].join('');
-    const res = await this._http().get(
-      `/job/${enc(name)}/api/json?tree=${encodeURIComponent(tree)}`
+    const res  = await this._http().get(
+      `${this._jobUrl(fullPath)}/api/json?tree=${encodeURIComponent(tree)}`
     );
-    const j   = res.data;
+    const j    = res.data;
     const base = this._transformJob(j);
     return {
       ...base,
+      fullPath,
       healthDesc: (j.healthReport || []).map(h => h.description).join('; ') || '—',
       builds: (j.builds || []).map(b => ({
         number:    b.number,
@@ -156,9 +212,9 @@ class JenkinsClient {
 
   /* ── Console output ─────────────────────────── */
 
-  async getConsoleOutput(name, buildNumber) {
+  async getConsoleOutput(fullPath, buildNumber) {
     const res = await this._http().get(
-      `/job/${enc(name)}/${buildNumber}/consoleText`,
+      `${this._jobUrl(fullPath)}/${buildNumber}/consoleText`,
       { headers: { Accept: 'text/plain' }, responseType: 'text' }
     );
     return res.data;
@@ -166,43 +222,50 @@ class JenkinsClient {
 
   /* ── Build actions ──────────────────────────── */
 
-  async triggerBuild(name) {
+  async triggerBuild(fullPath) {
     const crumb = await this._crumbHeaders();
-    await this._http().post(`/job/${enc(name)}/build`, null, { headers: crumb });
+    await this._http().post(`${this._jobUrl(fullPath)}/build`, null, { headers: crumb });
   }
 
-  async disableJob(name) {
+  async disableJob(fullPath) {
     const crumb = await this._crumbHeaders();
-    await this._http().post(`/job/${enc(name)}/disable`, null, { headers: crumb });
+    await this._http().post(`${this._jobUrl(fullPath)}/disable`, null, { headers: crumb });
   }
 
-  async enableJob(name) {
+  async enableJob(fullPath) {
     const crumb = await this._crumbHeaders();
-    await this._http().post(`/job/${enc(name)}/enable`, null, { headers: crumb });
+    await this._http().post(`${this._jobUrl(fullPath)}/enable`, null, { headers: crumb });
   }
 
-  async deleteJob(name) {
+  async deleteJob(fullPath) {
     const crumb = await this._crumbHeaders();
-    await this._http().post(`/job/${enc(name)}/doDelete`, null, { headers: crumb });
+    await this._http().post(`${this._jobUrl(fullPath)}/doDelete`, null, { headers: crumb });
   }
 
   /* ── Create / Update jobs ───────────────────── */
 
+  /**
+   * Create a new job.
+   * @param {string} name       - Job name (single segment, no slashes)
+   * @param {object} formData   - Form fields including optional `folder` (parent path)
+   */
   async createJob(name, formData) {
-    const crumb = await this._crumbHeaders();
-    const xml   = this.buildConfigXML(formData);
+    const crumb      = await this._crumbHeaders();
+    const xml        = this.buildConfigXML(formData);
+    const parentPath = (formData.folder || '').trim();
+    const base       = parentPath ? this._jobUrl(parentPath) : '';
     await this._http().post(
-      `/createItem?name=${encodeURIComponent(name)}`,
+      `${base}/createItem?name=${enc(name)}`,
       xml,
       { headers: { ...crumb, 'Content-Type': 'application/xml' } }
     );
   }
 
-  async updateJob(name, formData) {
+  async updateJob(fullPath, formData) {
     const crumb = await this._crumbHeaders();
     const xml   = this.buildConfigXML(formData);
     await this._http().post(
-      `/job/${enc(name)}/config.xml`,
+      `${this._jobUrl(fullPath)}/config.xml`,
       xml,
       { headers: { ...crumb, 'Content-Type': 'application/xml' } }
     );
@@ -250,6 +313,17 @@ class JenkinsClient {
 </flow-definition>`;
     }
 
+    if (d.type === 'Folder') {
+      return `<?xml version='1.1' encoding='UTF-8'?>
+<com.cloudbees.hudson.plugins.folder.Folder plugin="cloudbees-folder@latest">
+  <description>${desc}</description>
+  <views>
+    <hudson.model.AllView><owner class="com.cloudbees.hudson.plugins.folder.Folder" reference="../../.."/><name>All</name><filterExecutors>false</filterExecutors><filterQueue>false</filterQueue><properties class="hudson.model.View$PropertyList"/></hudson.model.AllView>
+  </views>
+  <viewsTabBar class="hudson.views.DefaultViewsTabBar"/>
+</com.cloudbees.hudson.plugins.folder.Folder>`;
+    }
+
     return `<?xml version='1.1' encoding='UTF-8'?>
 <project>
   <description>${desc}</description>
@@ -294,7 +368,5 @@ class JenkinsClient {
     });
   }
 }
-
-function enc(s) { return encodeURIComponent(s); }
 
 module.exports = new JenkinsClient();

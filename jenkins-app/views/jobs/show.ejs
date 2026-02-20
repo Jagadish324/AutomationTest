@@ -18,19 +18,27 @@ function resultBadge(r) {
 <div class="page-header">
   <div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">
-      <a href="/jobs" style="color:var(--info);">Jobs</a> / <%= job.name %>
+      <a href="/jobs" style="color:var(--info);">Jobs</a>
+      <% breadcrumb.forEach((crumb, i) => { %>
+        <span style="margin:0 4px;">›</span>
+        <% if (i < breadcrumb.length - 1) { %>
+          <a href="/jobs/<%= crumb.path.split('/').map(encodeURIComponent).join('/') %>" style="color:var(--info);"><%= crumb.name %></a>
+        <% } else { %>
+          <span><%= crumb.name %></span>
+        <% } %>
+      <% }); %>
     </div>
     <div class="page-title"><%= job.name %></div>
     <div class="page-subtitle"><%= job.type %> &nbsp;·&nbsp; <%- statusBadge(job.status) %></div>
   </div>
   <div class="header-actions">
     <% if (job.status !== 'disabled' && job.status !== 'running' && job.buildable) { %>
-    <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>/build" style="display:inline;">
+    <form method="POST" action="/jobs/<%= urlPath %>/build" style="display:inline;">
       <button class="btn btn-success">&#9654; Build Now</button>
     </form>
     <% } %>
-    <a href="/jobs/<%= encodeURIComponent(job.name) %>/edit" class="btn btn-primary">&#9998; Edit</a>
-    <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>?_method=DELETE"
+    <a href="/jobs/<%= urlPath %>/edit" class="btn btn-primary">&#9998; Edit</a>
+    <form method="POST" action="/jobs/<%= urlPath %>?_method=DELETE"
           style="display:inline;"
           onsubmit="return confirm('Delete job &quot;<%= job.name %>&quot;?');">
       <button class="btn btn-danger">&#128465; Delete</button>
@@ -77,6 +85,7 @@ function resultBadge(r) {
     <div class="card-body">
       <table style="width:100%;font-size:13px;">
         <tr><td style="font-weight:600;padding:6px 0;width:120px;">Type</td><td><%= job.type %></td></tr>
+        <tr><td style="font-weight:600;padding:6px 0;">Full Path</td><td style="font-family:monospace;font-size:12px;"><%= fullPath %></td></tr>
         <tr><td style="font-weight:600;padding:6px 0;">Description</td><td><%= job.description || '—' %></td></tr>
         <tr><td style="font-weight:600;padding:6px 0;">Health</td><td><%= job.healthDesc %></td></tr>
         <tr><td style="font-weight:600;padding:6px 0;">Build #</td><td>#<%= job.buildNumber %></td></tr>
@@ -89,15 +98,15 @@ function resultBadge(r) {
     <div class="card-header"><span class="card-title">Quick Actions</span></div>
     <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
       <% if (job.status !== 'disabled') { %>
-      <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>/disable">
+      <form method="POST" action="/jobs/<%= urlPath %>/disable">
         <button class="btn btn-secondary" style="width:100%;">&#128683; Disable Job</button>
       </form>
       <% } else { %>
-      <form method="POST" action="/jobs/<%= encodeURIComponent(job.name) %>/enable">
+      <form method="POST" action="/jobs/<%= urlPath %>/enable">
         <button class="btn btn-success" style="width:100%;">&#9654; Enable Job</button>
       </form>
       <% } %>
-      <a href="/jobs/<%= encodeURIComponent(job.name) %>/edit" class="btn btn-primary" style="text-align:center;">&#9998; Edit Configuration</a>
+      <a href="/jobs/<%= urlPath %>/edit" class="btn btn-primary" style="text-align:center;">&#9998; Edit Configuration</a>
     </div>
   </div>
 </div>
@@ -130,7 +139,7 @@ function resultBadge(r) {
           <td style="font-size:12px;color:var(--text-muted);"><%= b.duration %></td>
           <td style="font-size:12px;color:var(--text-muted);"><%= b.timestamp %></td>
           <td>
-            <a href="/jobs/<%= encodeURIComponent(job.name) %>/builds/<%= b.number %>/console"
+            <a href="/jobs/<%= urlPath %>/builds/<%= b.number %>/console"
                class="btn-icon btn-sm" title="Console Output">&#128196;</a>
           </td>
         </tr>

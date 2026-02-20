@@ -1,0 +1,202 @@
+<%
+function statusBadge(status) {
+  const map = {
+    success:['&#10003; Success','success'], failed:['&#10007; Failed','failed'],
+    running:['&#9654; Running','running'],  unstable:['&#9888; Unstable','unstable'],
+    aborted:['&#8856; Aborted','aborted'],  disabled:['&#128683; Disabled','disabled'],
+    unknown:['&#9679; Unknown','aborted']
+  };
+  const [label, cls] = map[status] || [status, 'aborted'];
+  return `<span class="status-badge ${cls}">${label}</span>`;
+}
+function healthBar(score) {
+  const color = score>=80?'var(--success)':score>=50?'var(--warning)':'var(--danger)';
+  return `<div style="display:flex;align-items:center;gap:6px;">
+    <div class="progress-bar-container"><div class="progress-bar" style="width:${score}%;background:${color};"></div></div>
+    <span style="font-size:11px;color:var(--text-muted);">${score}%</span></div>`;
+}
+const subfolders = folder.jobs.filter(j => j.isFolder);
+const jobs       = folder.jobs.filter(j => !j.isFolder);
+%>
+
+<!-- Breadcrumb + Header -->
+<div class="page-header">
+  <div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">
+      <a href="/jobs" style="color:var(--info);">Jobs</a>
+      <% breadcrumb.forEach((crumb, i) => { %>
+        <span style="margin:0 4px;">›</span>
+        <% if (i < breadcrumb.length - 1) { %>
+          <a href="/jobs/<%= urlPathFn(crumb.path) %>" style="color:var(--info);"><%= crumb.name %></a>
+        <% } else { %>
+          <span><%= crumb.name %></span>
+        <% } %>
+      <% }); %>
+    </div>
+    <div class="page-title">
+      <span style="margin-right:8px;">&#128193;</span><%= folder.name %>
+    </div>
+    <% if (folder.description) { %>
+    <div class="page-subtitle"><%= folder.description %></div>
+    <% } %>
+  </div>
+  <div class="header-actions">
+    <a href="/jobs/<%= urlPath %>" class="btn btn-secondary">&#8635; Refresh</a>
+    <a href="/jobs/new?folder=<%= encodeURIComponent(fullPath) %>" class="btn btn-primary">&#43; New Job Here</a>
+    <form method="POST" action="/jobs/<%= urlPath %>?_method=DELETE" style="display:inline;"
+          onsubmit="return confirm('Delete folder &quot;<%= folder.name %>&quot; and ALL its contents? This cannot be undone.');">
+      <button class="btn btn-danger">&#128465; Delete Folder</button>
+    </form>
+  </div>
+</div>
+
+<!-- Stat strip -->
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
+  <div class="stat-card">
+    <div class="stat-icon blue">&#128193;</div>
+    <div class="stat-info"><div class="stat-value"><%= subfolders.length %></div><div class="stat-label">Sub-Folders</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue">&#9881;</div>
+    <div class="stat-info"><div class="stat-value"><%= jobs.length %></div><div class="stat-label">Jobs</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">&#10003;</div>
+    <div class="stat-info"><div class="stat-value"><%= jobs.filter(j=>j.status==='success').length %></div><div class="stat-label">Passing</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red">&#10007;</div>
+    <div class="stat-info"><div class="stat-value"><%= jobs.filter(j=>j.status==='failed').length %></div><div class="stat-label">Failed</div></div>
+  </div>
+</div>
+
+<!-- Sub-folders -->
+<% if (subfolders.length > 0) { %>
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-header">
+    <span class="card-title">&#128193; Sub-Folders</span>
+    <span style="font-size:12px;color:var(--text-muted);"><%= subfolders.length %> folder<%= subfolders.length!==1?'s':'' %></span>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Folder Name</th>
+          <th>Description</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% subfolders.forEach(sub => { %>
+        <tr>
+          <td>
+            <div class="job-name-cell">
+              <div class="job-icon">&#128193;</div>
+              <div>
+                <a href="/jobs/<%= urlPathFn(sub.fullPath) %>" class="job-name"><%= sub.name %></a>
+                <div class="job-desc">Folder</div>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);"><%= (sub.description||'').substring(0,60) || '—' %></td>
+          <td>
+            <div class="action-buttons">
+              <a href="/jobs/<%= urlPathFn(sub.fullPath) %>" class="btn-icon btn-sm" title="Open Folder">&#128193;</a>
+              <a href="/jobs/new?folder=<%= encodeURIComponent(sub.fullPath) %>" class="btn-icon btn-sm" title="New Job Inside">&#43;</a>
+              <form method="POST" action="/jobs/<%= urlPathFn(sub.fullPath) %>?_method=DELETE" style="display:inline;"
+                    onsubmit="return confirm('Delete folder &quot;<%= sub.name %>&quot;?');">
+                <button class="btn-icon btn-sm" title="Delete" style="color:var(--danger);">&#128465;</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>
+
+<!-- Jobs inside this folder -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">&#9881; Jobs</span>
+    <span style="font-size:12px;color:var(--text-muted);"><%= jobs.length %> job<%= jobs.length!==1?'s':'' %></span>
+  </div>
+  <div class="table-container">
+    <% if (jobs.length === 0) { %>
+    <div class="empty-state">
+      <div class="empty-icon">&#128193;</div>
+      <p>This folder is empty.
+        <a href="/jobs/new?folder=<%= encodeURIComponent(fullPath) %>" style="color:var(--info);">
+          Create a job here
+        </a>
+      </p>
+    </div>
+    <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Job Name</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Last Build</th>
+          <th>Build #</th>
+          <th>Duration</th>
+          <th>Health</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% jobs.forEach(job => { %>
+        <tr>
+          <td>
+            <div class="job-name-cell">
+              <div class="job-icon">
+                <% if (job.type==='Pipeline') { %>&#9654;
+                <% } else { %>&#9881;<% } %>
+              </div>
+              <div>
+                <a href="/jobs/<%= urlPathFn(job.fullPath) %>" class="job-name"><%= job.name %></a>
+                <div class="job-desc"><%= (job.description||'').substring(0,55) || job.type %></div>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);"><%= job.type %></td>
+          <td><%- statusBadge(job.status) %></td>
+          <td style="font-size:12px;color:var(--text-muted);"><%= job.lastBuild %></td>
+          <td style="font-size:12px;">#<%= job.buildNumber %></td>
+          <td style="font-size:12px;color:var(--text-muted);"><%= job.duration %></td>
+          <td><%- healthBar(job.healthScore) %></td>
+          <td>
+            <div class="action-buttons">
+              <% if (job.status !== 'disabled' && job.status !== 'running' && job.buildable) { %>
+              <form method="POST" action="/jobs/<%= urlPathFn(job.fullPath) %>/build" style="display:inline;">
+                <button class="btn-icon btn-sm" title="Build Now">&#9654;</button>
+              </form>
+              <% } %>
+              <a href="/jobs/<%= urlPathFn(job.fullPath) %>" class="btn-icon btn-sm" title="View">&#128269;</a>
+              <a href="/jobs/<%= urlPathFn(job.fullPath) %>/edit" class="btn-icon btn-sm" title="Edit">&#9998;</a>
+              <% if (job.status === 'disabled') { %>
+              <form method="POST" action="/jobs/<%= urlPathFn(job.fullPath) %>/enable" style="display:inline;">
+                <button class="btn-icon btn-sm" title="Enable" style="color:var(--success);">&#9654;</button>
+              </form>
+              <% } else { %>
+              <form method="POST" action="/jobs/<%= urlPathFn(job.fullPath) %>/disable" style="display:inline;">
+                <button class="btn-icon btn-sm" title="Disable">&#128683;</button>
+              </form>
+              <% } %>
+              <form method="POST" action="/jobs/<%= urlPathFn(job.fullPath) %>?_method=DELETE"
+                    style="display:inline;"
+                    onsubmit="return confirm('Delete job &quot;<%= job.name %>&quot;? This cannot be undone.');">
+                <button class="btn-icon btn-sm" title="Delete" style="color:var(--danger);">&#128465;</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+</div>

@@ -2,17 +2,36 @@
 
 <div class="page-header">
   <div>
+    <!-- Breadcrumb -->
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">
-      <a href="/jobs" style="color:var(--info);">Jobs</a> / <%= isEdit ? 'Edit' : 'New Job' %>
+      <a href="/jobs" style="color:var(--info);">Jobs</a>
+      <% (breadcrumb || []).forEach((crumb, i) => { %>
+        <span style="margin:0 4px;">›</span>
+        <% if (i < breadcrumb.length - 1) { %>
+          <a href="/jobs/<%= crumb.path.split('/').map(encodeURIComponent).join('/') %>" style="color:var(--info);"><%= crumb.name %></a>
+        <% } else { %>
+          <span><%= crumb.name %></span>
+        <% } %>
+      <% }); %>
+      <% if (breadcrumb && breadcrumb.length) { %><span style="margin:0 4px;">›</span><% } %>
+      <span><%= isEdit ? 'Edit' : 'New Job' %></span>
     </div>
     <div class="page-title"><%= isEdit ? 'Edit: ' + job.name : 'Create New Job' %></div>
+    <% if (folder) { %>
+    <div class="page-subtitle" style="font-size:12px;">
+      Inside folder: <span style="font-family:monospace;color:var(--info);"><%= folder %></span>
+    </div>
+    <% } %>
   </div>
-  <a href="/jobs" class="btn btn-secondary">&#8592; Cancel</a>
+  <a href="<%= folder ? '/jobs/' + folder.split('/').map(encodeURIComponent).join('/') : '/jobs' %>" class="btn btn-secondary">&#8592; Cancel</a>
 </div>
 
 <div class="card" style="max-width:720px;">
   <div class="card-body">
     <form method="POST" action="<%= action %>">
+
+      <!-- Hidden folder context -->
+      <input type="hidden" name="folder" value="<%= folder || '' %>" />
 
       <!-- Job Name (readonly on edit) -->
       <div class="form-group">
@@ -91,7 +110,7 @@
       </div>
 
       <div class="modal-footer" style="border:none;padding:16px 0 0;justify-content:flex-end;">
-        <a href="/jobs" class="btn btn-secondary">Cancel</a>
+        <a href="<%= folder ? '/jobs/' + folder.split('/').map(encodeURIComponent).join('/') : '/jobs' %>" class="btn btn-secondary">Cancel</a>
         <button type="submit" class="btn btn-primary">
           &#10003; <%= isEdit ? 'Save Changes' : 'Create Job' %>
         </button>
