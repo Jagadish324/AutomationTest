@@ -45,7 +45,7 @@ const DashboardController = {
       queue,
       executors,
       stats: {
-        total: jobs.length, folders: folderCount, buildable: buildableJobs.length,
+        total: buildableJobs.length, folders: folderCount, buildable: buildableJobs.length,
         running, success, failed, unstable, disabled, passRate,
         nodes: executors.length, nodesOnline, nodesOffline
       }

@@ -26,9 +26,7 @@
     <div class="stat-info">
       <div class="stat-value"><%= stats.total %></div>
       <div class="stat-label">Total Jobs</div>
-      <div class="stat-change" style="color:var(--text-muted);">
-        <%= stats.buildable %> buildable &bull; <%= stats.folders %> folders
-      </div>
+      <div class="stat-change up">&#8593; <%= stats.passRate %>% pass rate</div>
     </div>
   </div>
   <div class="stat-card">
